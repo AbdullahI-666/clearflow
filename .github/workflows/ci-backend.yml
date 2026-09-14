@@ -17,8 +17,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       - name: Install Dependencies
-        run: cd server && npm ci
+        run: cd server && npm install
       - name: Build TypeScript
         run: cd server && npm run build
       - name: Run Tests
-        run: cd server && npm test || true
+        run: cd server && npm test
