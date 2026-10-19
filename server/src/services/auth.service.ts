@@ -26,7 +26,7 @@ export const DEMO_USERS = [
     _id: '65f000000000000000000002',
     name: 'David Miller',
     email: 'client@clearflow.com',
-    aliases: ['ahmed@ucp.edu.pk', 'client@clearflow.pk'],
+    aliases: ['client@clearflow.pk', 'david@clearflow.com'],
     role: 'Client' as const,
     phone: '+1 555 0182736',
     password: 'Demo@123',
@@ -35,7 +35,7 @@ export const DEMO_USERS = [
     _id: '65f000000000000000000003',
     name: 'Elena Rostova',
     email: 'resident@clearflow.com',
-    aliases: ['sara@ucp.edu.pk'],
+    aliases: ['elena@clearflow.com'],
     role: 'Client' as const,
     phone: '+1 555 0173829',
     password: 'Demo@123',
@@ -78,7 +78,7 @@ interface InMemoryUser {
   resetPasswordExpiry?: Date;
 }
 
-const IN_MEMORY_USERS: InMemoryUser[] = [];
+export const IN_MEMORY_USERS: InMemoryUser[] = [];
 
 /**
  * Ensures global demo users exist in the database with verified status
@@ -123,10 +123,12 @@ export const register = async (
   name: string,
   email: string,
   password: string,
-  role: 'Client' | 'FieldTeam' | 'Admin',
+  _role: string = 'Client',
   phone: string
 ) => {
   const normEmail = email.toLowerCase().trim();
+  // Strictly enforce Client role on public registration to prevent privilege escalation
+  const role: 'Client' = 'Client';
 
   // 1. Check if user already exists
   if (IN_MEMORY_USERS.some(u => u.email === normEmail) || DEMO_USERS.some(d => d.email.toLowerCase() === normEmail)) {
@@ -441,6 +443,9 @@ export const resetPassword = async (rawToken: string, newPass: string) => {
 
   const memUser = IN_MEMORY_USERS.find(u => u.resetPasswordToken === hashedToken);
   if (memUser) {
+    if (memUser.resetPasswordExpiry && memUser.resetPasswordExpiry < new Date()) {
+      throw new ApiError(400, 'Password reset link has expired. Please request a new one.');
+    }
     memUser.passwordHash = passwordHash;
     memUser.resetPasswordToken = undefined;
     memUser.resetPasswordExpiry = undefined;

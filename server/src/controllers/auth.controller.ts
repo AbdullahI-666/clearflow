@@ -28,7 +28,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
 export const forgotPassword = async (req: Request, res: Response) => {
   const result = await authService.forgotPassword(req.body.email);
-  res.json(ApiResponse.success(null, result.message));
+  res.json(ApiResponse.success({ resetUrl: result.resetUrl }, result.message));
 };
 
 export const resetPassword = async (req: Request, res: Response) => {

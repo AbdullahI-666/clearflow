@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Mail, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, Loader2, Zap } from 'lucide-react';
 import { apiClient } from '@/infrastructure/api/client';
 import { ENDPOINTS } from '@/infrastructure/api/endpoints';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ export const ForgotPasswordForm = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [resetUrl, setResetUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +27,7 @@ export const ForgotPasswordForm = () => {
     try {
       const res = await apiClient.post(ENDPOINTS.AUTH.FORGOT_PASSWORD, { email: email.trim() });
       if (res.data?.success) {
+        setResetUrl(res.data?.data?.resetUrl || '');
         setIsSent(true);
         toast.success('Password reset link has been dispatched to your email.');
       }
@@ -56,7 +58,26 @@ export const ForgotPasswordForm = () => {
             <p className="text-sm text-gray-600">
               We've dispatched recovery instructions to <span className="font-semibold text-teal-800">{email}</span>.
             </p>
-            <Button onClick={() => navigate('/login')} className="w-full bg-teal-600 hover:bg-teal-700 mt-4">
+
+            {resetUrl && (
+              <div className="rounded-xl bg-emerald-50/80 p-3.5 border border-emerald-200 text-xs text-emerald-900 space-y-2 text-left mt-2">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span>Direct Reset Link (Instant Access):</span>
+                </div>
+                <p className="text-[11px] text-gray-600">
+                  You can set your new password immediately by clicking below:
+                </p>
+                <a
+                  href={resetUrl}
+                  className="block text-center w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition-colors text-xs"
+                >
+                  ⚡ Set New Password Now
+                </a>
+              </div>
+            )}
+
+            <Button onClick={() => navigate('/login')} className="w-full bg-teal-600 hover:bg-teal-700 mt-4 text-white font-semibold">
               Return to Sign In
             </Button>
           </div>

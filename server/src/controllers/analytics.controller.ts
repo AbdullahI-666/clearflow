@@ -27,5 +27,16 @@ export const getZoneDemand = async (req: Request, res: Response) => {
 export const exportData = async (req: Request, res: Response) => {
   const { format = 'csv', from, to } = req.query;
   const result = await analyticsService.exportData(format as 'pdf' | 'csv', from as string, to as string);
-  res.json(ApiResponse.success(result, 'Export generated successfully'));
+
+  if (format === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="clearflow_analytics_export.csv"');
+    res.setHeader('Content-Length', result.length);
+    return res.send(result);
+  }
+
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="clearflow_analytics_export.${format}"`);
+  res.setHeader('Content-Length', result.length);
+  return res.send(result);
 };

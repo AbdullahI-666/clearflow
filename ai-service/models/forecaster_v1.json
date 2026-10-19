@@ -1,0 +1,49 @@
+{
+  "model_version": "clearflow-forecaster-v1.0",
+  "training_date": "2026-10-19T06:26:42.985717+00:00",
+  "model_type": "LinearRegression (Ratio to 7-day rolling mean)",
+  "data_source": "NYC 311 Service Requests (24-month proxy)",
+  "total_training_days": 698,
+  "date_range": {
+    "start": "2024-11-15",
+    "end": "2026-10-13"
+  },
+  "feature_names": [
+    "dow_0",
+    "dow_1",
+    "dow_2",
+    "dow_3",
+    "dow_4",
+    "dow_5",
+    "dow_6",
+    "month_norm",
+    "lag_7_ratio"
+  ],
+  "intercept": 1.1959,
+  "coefficients": {
+    "dow_0": 0.20208,
+    "dow_1": 0.18559,
+    "dow_2": 0.13604,
+    "dow_3": 0.12582,
+    "dow_4": 0.06222,
+    "dow_5": -0.36921,
+    "dow_6": -0.34253,
+    "month_norm": -0.0281,
+    "lag_7_ratio": -0.17334
+  },
+  "walk_forward_evaluation": {
+    "evaluation_days": 28,
+    "model_mae_requests": 257.08,
+    "naive_baseline_mae_requests": 426.14,
+    "model_mae_ratio": 0.1232,
+    "naive_baseline_mae_ratio": 0.2005,
+    "beats_baseline": true,
+    "improvement_percentage": 39.67
+  },
+  "libraries": {
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0",
+    "pandas": "3.0.6",
+    "numpy": "2.4.6"
+  }
+}

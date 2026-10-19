@@ -8,6 +8,7 @@ router.use(authenticate);
 
 // F-29: Visual Quality Verification (Field Team & Admin)
 router.post('/verify', authorize(['FieldTeam', 'Admin']), aiController.verifyImageQuality);
+router.get('/verification/:workOrderId', authorize(['Client', 'FieldTeam', 'Admin']), aiController.getVerificationReport);
 
 // F-30: Workload & Demand Forecasting (Admin)
 router.get('/forecast', authorize(['Admin']), aiController.getWorkloadForecast);

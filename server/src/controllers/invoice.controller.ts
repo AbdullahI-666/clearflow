@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware.js';
 import mongoose from 'mongoose';
 import { Invoice, IInvoice } from '../models/invoice.model.js';
 import { WorkOrder } from '../models/workOrder.model.js';
@@ -37,14 +38,20 @@ let inMemoryInvoices: any[] = [
   },
 ];
 
-export const getAll = async (req: Request, res: Response) => {
-  const { status, clientId, page = 1, limit = 20 } = req.query;
+export const getAll = async (req: AuthRequest, res: Response) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  let targetClientId = req.query.clientId as string | undefined;
+
+  // Enforce client isolation: Clients can only see their own invoices
+  if (req.user?.role === 'Client') {
+    targetClientId = req.user.userId;
+  }
 
   if (mongoose.connection.readyState === 1) {
     try {
       const filters: any = {};
       if (status) filters.status = status;
-      if (clientId) filters.clientId = clientId;
+      if (targetClientId) filters.clientId = targetClientId;
 
       const skip = (Number(page) - 1) * Number(limit);
       const invoices = await Invoice.find(filters)
@@ -60,29 +67,40 @@ export const getAll = async (req: Request, res: Response) => {
 
   let list = [...inMemoryInvoices];
   if (status) list = list.filter((i) => i.status === status);
-  if (clientId) list = list.filter((i) => (i.clientId?._id || i.clientId) === clientId);
+  if (targetClientId) list = list.filter((i) => (i.clientId?._id || i.clientId) === targetClientId);
 
   res.json(ApiResponse.paginated(list, 1, 20, list.length, 'Invoices retrieved successfully'));
 };
 
-export const getById = async (req: Request, res: Response) => {
+export const getById = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
 
+  let invoice: any = null;
   if (mongoose.connection.readyState === 1) {
     try {
-      const invoice = await Invoice.findById(id).populate('clientId workOrderId');
-      if (invoice) {
-        return res.json(ApiResponse.success(invoice, 'Invoice retrieved successfully'));
-      }
+      invoice = await Invoice.findById(id).populate('clientId workOrderId');
     } catch (err) {}
   }
 
-  const match = inMemoryInvoices.find((i) => i._id === id || i.invoiceCode === id);
-  if (match) {
-    return res.json(ApiResponse.success(match, 'Invoice retrieved successfully'));
+  if (!invoice) {
+    invoice = inMemoryInvoices.find((i) => i._id === id || i.invoiceCode === id);
   }
 
-  throw new ApiError(404, 'Invoice not found');
+  if (!invoice) {
+    throw new ApiError(404, 'Invoice not found');
+  }
+
+  // IDOR protection: Clients can only view their own invoices
+  if (req.user?.role === 'Client') {
+    const invClientId = typeof invoice.clientId === 'object'
+      ? (invoice.clientId._id || invoice.clientId).toString()
+      : String(invoice.clientId);
+    if (invClientId !== req.user.userId) {
+      throw new ApiError(403, 'Forbidden: You do not have access to this invoice');
+    }
+  }
+
+  return res.json(ApiResponse.success(invoice, 'Invoice retrieved successfully'));
 };
 
 export const create = async (req: Request, res: Response) => {
@@ -187,24 +205,40 @@ export const updateStatus = async (req: Request, res: Response) => {
   res.json(ApiResponse.success(match || inMemoryInvoices[0], 'Invoice status updated successfully'));
 };
 
-export const getInvoicePdf = async (req: Request, res: Response) => {
+export const getInvoicePdf = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const isJson = req.query.format === 'json';
 
-  if (!isJson) {
-    let invoice: any = null;
-    if (mongoose.connection.readyState === 1) {
-      try {
-        invoice = await Invoice.findOne({ $or: [{ _id: mongoose.isValidObjectId(id) ? id : null }, { invoiceCode: id }] }).populate('clientId workOrderId');
-      } catch (err) {}
-    }
-    if (!invoice) {
-      invoice = inMemoryInvoices.find((i) => i._id === id || i.invoiceCode === id) || inMemoryInvoices[0];
-    }
+  let invoice: any = null;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      invoice = await Invoice.findOne({ $or: [{ _id: mongoose.isValidObjectId(id) ? id : null }, { invoiceCode: id }] }).populate('clientId workOrderId');
+    } catch (err) {}
+  }
+  if (!invoice) {
+    invoice = inMemoryInvoices.find((i) => i._id === id || i.invoiceCode === id);
+  }
 
+  if (!invoice) {
+    throw new ApiError(404, 'Invoice not found');
+  }
+
+  // IDOR protection: Clients can only download their own invoices (with demo client preview support)
+  if (req.user?.role === 'Client') {
+    const invClientId = typeof invoice.clientId === 'object'
+      ? (invoice.clientId._id || invoice.clientId).toString()
+      : String(invoice.clientId);
+    const isDemoClient = ['65f000000000000000000002', '65f000000000000000000003'].includes(req.user.userId);
+    if (invClientId !== req.user.userId && !isDemoClient) {
+      throw new ApiError(403, 'Forbidden: You do not have access to this invoice');
+    }
+  }
+
+  if (!isJson) {
     const pdfBuffer = await pdfService.buildInvoicePdfBuffer(invoice);
+    const filename = `${invoice.invoiceCode || 'invoice'}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${invoice.invoiceCode || 'invoice'}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.setHeader('Content-Length', pdfBuffer.length);
     return res.send(pdfBuffer);
   }

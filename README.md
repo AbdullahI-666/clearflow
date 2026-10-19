@@ -60,9 +60,40 @@ Then visit **`http://localhost:3000`**.
 
 ---
 
+## 🤖 AI Microservice (Verification & Forecasting)
+
+The `ai-service/` directory contains an evidence-based computer vision classifier and demand forecaster.
+
+### Run AI Microservice
+```powershell
+cd ai-service
+.\.venv\Scripts\python.exe app.py
+```
+Health endpoint: `http://localhost:5001/health`
+
+### Run Tests
+```powershell
+cd ai-service
+.\.venv\Scripts\python.exe -m pytest tests -v
+```
+
+### Train / Retrain Models
+```powershell
+cd ai-service
+# 1. Fetch public datasets (Kaggle & NYC 311)
+.\.venv\Scripts\python.exe scripts\fetch_kaggle.py
+.\.venv\Scripts\python.exe scripts\fetch_311.py
+
+# 2. Train computer vision classifier and workload forecaster
+.\.venv\Scripts\python.exe scripts\train_classifier.py
+.\.venv\Scripts\python.exe scripts\train_forecaster.py
+```
+
+---
+
 ## 🛠️ Tech Stack & Key Modules
 - **Frontend**: React 18, TypeScript, Tailwind CSS v4, Shadcn/UI, Leaflet.js, Chart.js.
 - **Backend**: Node.js 20, Express 5, TypeScript, Mongoose, Socket.IO, PDFKit, Jose JWT.
-- **AI Microservice**: Python 3.11, Flask, Scikit-learn, OpenCV/Pillow, NumPy.
+- **AI Microservice**: Python 3.11, Flask, PyTorch / Torchvision (MobileNetV3-Small), Scikit-learn, Pillow, NumPy, Pandas.
 - **Database**: MongoDB Atlas (12 collections with compound indexes).
 - **Documentation**: OpenAPI 3.0 Swagger at `http://localhost:3000/api-docs`.

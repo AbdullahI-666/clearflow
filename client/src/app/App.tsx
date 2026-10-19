@@ -51,6 +51,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(newUser);
     setIsAuthenticated(true);
     localStorage.setItem('clearflow_token', newToken);
+    localStorage.setItem('token', newToken);
   };
 
   const logout = () => {
@@ -58,6 +59,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('clearflow_token');
+    localStorage.removeItem('token');
   };
 
   const updateUser = (updates: Partial<User>) => {

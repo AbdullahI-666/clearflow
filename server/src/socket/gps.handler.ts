@@ -7,7 +7,11 @@ export default (io: Server, socket: AuthenticatedSocket) => {
   }
 
   socket.on('gps:update', (data: { lat: number; lng: number; accuracy?: number; teamId?: string }) => {
-    const teamId = socket.user?.id || data.teamId;
-    io.to('admin:tracking').emit('gps:update', { teamId, ...data });
+    // Only authenticated FieldTeam or Admin can broadcast GPS updates
+    if (!socket.user || (socket.user.role !== 'FieldTeam' && socket.user.role !== 'Admin')) {
+      return;
+    }
+    const teamId = data.teamId || socket.user.userId;
+    io.to('admin:tracking').emit('gps:update', { ...data, teamId });
   });
 };

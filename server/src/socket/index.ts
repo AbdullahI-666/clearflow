@@ -14,14 +14,16 @@ export const initSocket = (httpServer: any) => {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-      if (!token) return next(); // Allow unauthenticated connections for public live maps if needed
+      if (!token) {
+        return next(new Error('Authentication required: No token provided'));
+      }
       
       const secret = new TextEncoder().encode(env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
       socket.user = payload;
       next();
     } catch (err) {
-      next();
+      next(new Error('Authentication failed: Invalid or expired token'));
     }
   });
 

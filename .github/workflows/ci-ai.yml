@@ -24,4 +24,4 @@ jobs:
       - name: Run Pytest
         run: |
           cd ai-service
-          pytest || true
+          pytest

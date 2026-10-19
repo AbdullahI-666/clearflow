@@ -20,6 +20,15 @@ export const verifyImageQuality = async (req: Request, res: Response) => {
   res.json(ApiResponse.success(result, 'AI visual verification completed'));
 };
 
+export const getVerificationReport = async (req: Request, res: Response) => {
+  const { workOrderId } = req.params;
+  const report = await aiService.getVerificationLog(workOrderId as string);
+  if (!report) {
+    throw new ApiError(404, 'AI verification report not found for this work order');
+  }
+  res.json(ApiResponse.success(report, 'AI verification audit log retrieved'));
+};
+
 export const getWorkloadForecast = async (_req: Request, res: Response) => {
   const forecast = await aiService.generateWorkloadForecast();
   res.json(ApiResponse.success(forecast, '7-Day predictive workload forecast generated'));

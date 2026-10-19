@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_key_clearflow_2026')) {
+  console.error('CRITICAL SECURITY ERROR: JWT_SECRET must be set to a secure secret in production!');
+  process.exit(1);
+}
+
 export const env = {
   PORT: process.env.PORT || 3000,
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/clearflow',

@@ -96,8 +96,10 @@ export const WASTE_PROFILES: Record<string, {
   },
 };
 
+import { performAiQualityVerification } from './vision.service.js';
+
 /**
- * F-29: Visual Quality Verification Microservice (Image Similarity & Fraud Detection)
+ * F-29: Visual Quality Verification Microservice (Image Similarity, libvips Computer Vision & Fraud Detection)
  */
 export const verifyServiceQuality = async (
   workOrderId?: string,
@@ -105,8 +107,6 @@ export const verifyServiceQuality = async (
   afterUrl?: string,
   customThreshold?: number
 ) => {
-  const startTime = Date.now();
-
   // Retrieve threshold from settings or default
   let threshold = customThreshold ?? 0.75;
   if (customThreshold === undefined && mongoose.connection.readyState === 1) {
@@ -118,98 +118,18 @@ export const verifyServiceQuality = async (
     } catch (err) {}
   }
 
-  // 1. Detect Duplicate / Fraudulent Image Pairs
-  const isDuplicate = beforeUrl && afterUrl && (
-    beforeUrl.trim().toLowerCase() === afterUrl.trim().toLowerCase() ||
-    (beforeUrl.includes('before_sample') && afterUrl.includes('before_sample'))
-  );
+  // Execute real libvips vision pipeline
+  const visionResult = await performAiQualityVerification(beforeUrl, afterUrl, threshold);
+  const nextStatus = visionResult.result === 'Pass' ? 'PendingReview' : 'Flagged';
 
-  if (isDuplicate) {
-    const processingTimeMs = Date.now() - startTime + 45;
-    const resultLog = {
-      confidenceScore: 0.0,
-      result: 'Fail' as const,
-      modelVersion: 'clearflow-vit-v1.4-fraud-detection',
-      processingTimeMs,
-      verifiedAt: new Date(),
-      details: {
-        fraudAlert: true,
-        reason: 'Before and after photos are identical. Work cannot be confirmed.',
-        structuralDifference: 0.0,
-        threshold,
-      },
-    };
-
-    if (workOrderId && mongoose.connection.readyState === 1) {
-      try {
-        await WorkOrder.findByIdAndUpdate(workOrderId, {
-          aiConfidenceScore: 0.0,
-          aiResult: 'Fail',
-          status: 'Flagged',
-        });
-
-        await AiVerificationLog.findOneAndUpdate(
-          { workOrderId: new mongoose.Types.ObjectId(workOrderId) },
-          {
-            workOrderId: new mongoose.Types.ObjectId(workOrderId),
-            beforeImageUrl: beforeUrl || '',
-            afterImageUrl: afterUrl || '',
-            confidenceScore: 0.0,
-            result: 'Fail',
-            modelVersion: resultLog.modelVersion,
-            processingTimeMs,
-            verifiedAt: new Date(),
-          },
-          { upsert: true, new: true }
-        );
-      } catch (err) {}
-    }
-
-    return resultLog;
-  }
-
-  // 2. High-Fidelity Structural / Edge Difference Analysis
-  // Generates reliable confidence metrics with slight stochastic realism (0.88 - 0.96)
-  const baseScore = 0.92;
-  const hashVariance = Math.abs(
-    (beforeUrl || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 7
-  ) / 100;
-  const confidenceScore = Math.min(0.98, Math.max(0.70, Math.round((baseScore + hashVariance) * 100) / 100));
-
-  let result: 'Pass' | 'Fail' | 'Flagged';
-  if (confidenceScore >= threshold) {
-    result = 'Pass';
-  } else if (confidenceScore >= threshold * 0.8) {
-    result = 'Flagged';
-  } else {
-    result = 'Fail';
-  }
-
-  const processingTimeMs = Math.max(120, Date.now() - startTime + Math.floor(Math.random() * 80 + 150));
-
-  const resultLog = {
-    confidenceScore,
-    result,
-    modelVersion: 'clearflow-vit-v1.4-production',
-    processingTimeMs,
-    verifiedAt: new Date(),
-    details: {
-      fraudAlert: false,
-      structuralDifference: Math.round((0.35 + hashVariance * 2) * 1000) / 1000,
-      colorHistogramShift: Math.round((0.42 + hashVariance) * 1000) / 1000,
-      threshold,
-      serviceStatus: result === 'Pass' ? 'Verified Clean & Complete' : 'Requires Re-inspection',
-    },
-  };
-
-  // Persist to MongoDB Atlas
+  // Persist to MongoDB Atlas if connected
   if (workOrderId && mongoose.connection.readyState === 1) {
     try {
-      const nextStatus = result === 'Pass' ? 'PendingReview' : 'Flagged';
       await WorkOrder.findByIdAndUpdate(workOrderId, {
         afterImageUrl: afterUrl,
-        aiConfidenceScore: confidenceScore,
-        aiResult: result,
+        aiConfidenceScore: visionResult.confidenceScore,
+        aiResult: visionResult.result,
+        aiVerificationDetails: visionResult,
         status: nextStatus,
       });
 
@@ -219,18 +139,35 @@ export const verifyServiceQuality = async (
           workOrderId: new mongoose.Types.ObjectId(workOrderId),
           beforeImageUrl: beforeUrl || '',
           afterImageUrl: afterUrl || '',
-          confidenceScore,
-          result,
-          modelVersion: resultLog.modelVersion,
-          processingTimeMs,
-          verifiedAt: new Date(),
+          confidenceScore: visionResult.confidenceScore,
+          result: visionResult.result,
+          modelVersion: visionResult.modelVersion,
+          processingTimeMs: visionResult.processingTimeMs,
+          verifiedAt: visionResult.verifiedAt,
+          metrics: visionResult.metrics,
+          fraudAnalysis: visionResult.fraudAnalysis,
+          qualityAssessment: visionResult.qualityAssessment,
+          findings: visionResult.findings,
+          serviceRecommendation: visionResult.serviceRecommendation,
         },
         { upsert: true, new: true }
       );
     } catch (err) {}
   }
 
-  return resultLog;
+  return visionResult;
+};
+
+export const getVerificationLog = async (workOrderId: string) => {
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const log = await AiVerificationLog.findOne({
+        workOrderId: new mongoose.Types.ObjectId(workOrderId),
+      });
+      if (log) return log;
+    } catch {}
+  }
+  return null;
 };
 
 /**

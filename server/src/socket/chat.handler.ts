@@ -8,10 +8,13 @@ export default (io: Server, socket: Socket) => {
     socket.join(workOrderId);
   });
 
-  socket.on('chat:message', async (data: { workOrderId: string; message: string; senderId?: string; senderRole?: string }) => {
+  socket.on('chat:message', async (data: { workOrderId: string; message: string }) => {
     const user = (socket as any).user;
-    const senderId = user?.userId || data.senderId || 'user';
-    const senderRole = user?.role || data.senderRole || 'Client';
+    if (!user || !user.userId) return;
+
+    // Strict identity enforcement from authenticated JWT - no client spoofing
+    const senderId = user.userId;
+    const senderRole = user.role || 'Client';
 
     const msgObj = await chatService.sendMessage(
       data.workOrderId,

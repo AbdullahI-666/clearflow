@@ -17,10 +17,25 @@ export const autoAssign = async (workOrderId: string) => {
       const wo = await WorkOrder.findById(workOrderId);
       if (!wo) return null;
 
-      const teams = await FieldTeam.find({
+      // Find active teams with capacity (activeOrderCount < 5)
+      let teams = await FieldTeam.find({
         categoryId: wo.categoryId,
         isActive: true,
+        activeOrderCount: { $lt: 5 },
       });
+
+      // If all teams in category are busy, consider any active team in category
+      if (!teams.length) {
+        teams = await FieldTeam.find({
+          categoryId: wo.categoryId,
+          isActive: true,
+        });
+      }
+
+      // If still no team in category, consider general maintenance teams
+      if (!teams.length) {
+        teams = await FieldTeam.find({ isActive: true });
+      }
 
       if (!teams.length) return null;
 
@@ -88,10 +103,11 @@ export const autoAssign = async (workOrderId: string) => {
     } catch (err) {}
   }
 
-  // In-memory fallback dispatch
+  // In-memory fallback dispatch dynamically matching category
   const memWo = MOCK_WORK_ORDERS.find((w) => w._id === workOrderId || w.workOrderCode === workOrderId);
   if (memWo) {
-    const assignedTeam = DEFAULT_TEAMS_DATA[0];
+    const catId = typeof memWo.categoryId === 'object' ? (memWo.categoryId as any)?._id : memWo.categoryId;
+    const assignedTeam = DEFAULT_TEAMS_DATA.find((t) => t.categoryId === catId) || DEFAULT_TEAMS_DATA[0];
     memWo.teamId = assignedTeam as any;
     memWo.status = 'Assigned' as any;
     return { bestTeam: assignedTeam, scores: [] };

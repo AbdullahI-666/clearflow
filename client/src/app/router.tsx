@@ -4,6 +4,7 @@ import { AuthLayout } from '../shared/components/layouts/AuthLayout';
 import { DashboardLayout } from '../shared/components/layouts/DashboardLayout';
 import { ProtectedRoute } from '../shared/components/ProtectedRoute';
 import { useAuth } from '../entities/user/hooks/useAuth';
+import { Role } from '../entities/user/types';
 
 // Auth Components
 import { LoginForm } from '../features/auth/components/LoginForm';
@@ -32,6 +33,7 @@ import { TeamList } from '../features/teams/components/TeamList';
 import { NotificationList } from '../features/notifications/components/NotificationList';
 import { ProfilePage } from '../features/profile/components/ProfilePage';
 import { SettingsPage } from '../features/settings/components/SettingsPage';
+import { ReportViewer } from '../features/reports/components/ReportViewer';
 import { NotFound } from '../shared/components/NotFound';
 
 const RoleDashboard = () => {
@@ -68,42 +70,59 @@ const router = createBrowserRouter([
       {
         element: <DashboardLayout />,
         children: [
-          // Dynamic Core Routes
+          // General Authenticated Routes (all roles)
           { path: '/dashboard', element: <RoleDashboard /> },
           { path: '/work-orders', element: <WorkOrderList /> },
-          { path: '/work-orders/new', element: <ServiceRequestForm /> },
           { path: '/work-orders/:id', element: <WorkOrderDetail /> },
-          { path: '/categories', element: <CategoryManagement /> },
-          { path: '/invoices', element: <InvoiceManagement /> },
-          { path: '/tracking', element: <LiveTrackingMap /> },
           { path: '/chat', element: <ChatWindow /> },
           { path: '/chat/:workOrderId', element: <ChatWindow /> },
-          { path: '/analytics', element: <AnalyticsDashboard /> },
-          { path: '/teams', element: <TeamList /> },
           { path: '/notifications', element: <NotificationList /> },
           { path: '/profile', element: <ProfilePage /> },
-          { path: '/settings', element: <SettingsPage /> },
+          { path: '/reports/:id', element: <ReportViewer /> },
+          { path: '/reports', element: <ReportViewer /> },
 
-          // Direct Client Route Aliases (from FYP Guide Section 6.2)
-          { path: '/client/dashboard', element: <ClientDashboard /> },
-          { path: '/client/requests', element: <WorkOrderList /> },
-          { path: '/client/requests/new', element: <ServiceRequestForm /> },
-          { path: '/client/requests/:id', element: <WorkOrderDetail /> },
+          // Client-accessible Routes
+          {
+            element: <ProtectedRoute allowedRoles={[Role.CLIENT, Role.ADMIN]} />,
+            children: [
+              { path: '/work-orders/new', element: <ServiceRequestForm /> },
+              { path: '/client/dashboard', element: <ClientDashboard /> },
+              { path: '/client/requests', element: <WorkOrderList /> },
+              { path: '/client/requests/new', element: <ServiceRequestForm /> },
+              { path: '/client/requests/:id', element: <WorkOrderDetail /> },
+            ],
+          },
 
-          // Direct Field Team Route Aliases
-          { path: '/team/dashboard', element: <FieldTeamDashboard /> },
-          { path: '/team/assignments/:id', element: <WorkOrderDetail /> },
-          { path: '/team/upload/:id', element: <FieldTeamDashboard /> },
+          // Field Team Routes
+          {
+            element: <ProtectedRoute allowedRoles={[Role.FIELD_TEAM, Role.ADMIN]} />,
+            children: [
+              { path: '/team/dashboard', element: <FieldTeamDashboard /> },
+              { path: '/team/assignments/:id', element: <WorkOrderDetail /> },
+              { path: '/team/upload/:id', element: <FieldTeamDashboard /> },
+            ],
+          },
 
-          // Direct Admin Route Aliases
-          { path: '/admin/dashboard', element: <AdminDashboard /> },
-          { path: '/admin/map', element: <LiveTrackingMap /> },
-          { path: '/admin/work-orders', element: <WorkOrderList /> },
-          { path: '/admin/teams', element: <TeamList /> },
-          { path: '/admin/categories', element: <CategoryManagement /> },
-          { path: '/admin/invoices', element: <InvoiceManagement /> },
-          { path: '/admin/analytics', element: <AnalyticsDashboard /> },
-          { path: '/admin/settings', element: <SettingsPage /> },
+          // Admin-only Protected Routes
+          {
+            element: <ProtectedRoute allowedRoles={[Role.ADMIN]} />,
+            children: [
+              { path: '/categories', element: <CategoryManagement /> },
+              { path: '/invoices', element: <InvoiceManagement /> },
+              { path: '/tracking', element: <LiveTrackingMap /> },
+              { path: '/analytics', element: <AnalyticsDashboard /> },
+              { path: '/teams', element: <TeamList /> },
+              { path: '/settings', element: <SettingsPage /> },
+              { path: '/admin/dashboard', element: <AdminDashboard /> },
+              { path: '/admin/map', element: <LiveTrackingMap /> },
+              { path: '/admin/work-orders', element: <WorkOrderList /> },
+              { path: '/admin/teams', element: <TeamList /> },
+              { path: '/admin/categories', element: <CategoryManagement /> },
+              { path: '/admin/invoices', element: <InvoiceManagement /> },
+              { path: '/admin/analytics', element: <AnalyticsDashboard /> },
+              { path: '/admin/settings', element: <SettingsPage /> },
+            ],
+          },
         ],
       },
     ],

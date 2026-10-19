@@ -15,11 +15,6 @@ export const DashboardLayout = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Quick switch for demo purposes
-  const switchRole = (role: Role) => {
-    updateUser({ role });
-    navigate('/dashboard');
-  };
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: [Role.CLIENT, Role.FIELD_TEAM, Role.ADMIN] },
@@ -73,13 +68,11 @@ export const DashboardLayout = () => {
       </div>
 
       <div className="p-4 border-t border-gray-100">
-        <div className="mb-4 px-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">View As (Demo)</p>
-          <div className="flex gap-2">
-            <Button size="sm" variant={isClient ? 'default' : 'outline'} className={isClient ? 'bg-teal-600 hover:bg-teal-700' : ''} onClick={() => switchRole(Role.CLIENT)}>C</Button>
-            <Button size="sm" variant={isFieldTeam ? 'default' : 'outline'} className={isFieldTeam ? 'bg-teal-600 hover:bg-teal-700' : ''} onClick={() => switchRole(Role.FIELD_TEAM)}>F</Button>
-            <Button size="sm" variant={isAdmin ? 'default' : 'outline'} className={isAdmin ? 'bg-teal-600 hover:bg-teal-700' : ''} onClick={() => switchRole(Role.ADMIN)}>A</Button>
-          </div>
+        <div className="px-3 py-2 bg-gray-50 rounded-lg flex items-center justify-between">
+          <span className="text-xs text-gray-600 font-medium truncate max-w-[130px]">{user?.name || 'User'}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-100 text-teal-800">
+            {user?.role || 'Client'}
+          </span>
         </div>
       </div>
     </div>

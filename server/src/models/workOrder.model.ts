@@ -19,6 +19,7 @@ export interface IWorkOrder extends Document {
   wasteQuantityKg?: number;
   aiConfidenceScore?: number;
   aiResult?: string;
+  aiVerificationDetails?: any;
   pdfReportUrl?: string;
   assignedAt?: Date;
   startedAt?: Date;
@@ -52,6 +53,7 @@ const workOrderSchema = new Schema<IWorkOrder>(
     wasteQuantityKg: { type: Number },
     aiConfidenceScore: { type: Number },
     aiResult: { type: String },
+    aiVerificationDetails: { type: Schema.Types.Mixed },
     pdfReportUrl: { type: String },
     assignedAt: { type: Date },
     startedAt: { type: Date },

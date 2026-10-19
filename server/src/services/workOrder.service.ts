@@ -269,11 +269,15 @@ export const uploadAfterImage = async (id: string, imageUrl: string) => {
       wo.afterImageUrl = imageUrl;
       wo.aiConfidenceScore = confidence;
       wo.aiResult = result;
+      wo.aiVerificationDetails = aiResult;
       wo.status = status as any;
       await wo.save();
 
       const populated = await WorkOrder.findById(wo._id).populate(['clientId', 'teamId', 'categoryId']).catch(() => null);
-      if (populated) return populated;
+      if (populated) {
+        (populated as any).aiVerificationDetails = aiResult;
+        return populated;
+      }
     }
   } catch (err) {}
 
@@ -282,6 +286,7 @@ export const uploadAfterImage = async (id: string, imageUrl: string) => {
     (mockWo as any).afterImageUrl = imageUrl;
     (mockWo as any).aiConfidenceScore = confidence;
     (mockWo as any).aiResult = result;
+    (mockWo as any).aiVerificationDetails = aiResult;
     (mockWo as any).status = status;
     return mockWo;
   }

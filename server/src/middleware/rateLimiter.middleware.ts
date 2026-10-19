@@ -6,7 +6,7 @@ export const generalLimiter = rateLimit({
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.headers['x-test-bypass'] === 'clearflow-test',
+  skip: (req) => process.env.NODE_ENV === 'test' && req.headers['x-test-bypass'] === 'clearflow-test',
 });
 
 export const authLimiter = rateLimit({
@@ -15,5 +15,5 @@ export const authLimiter = rateLimit({
   message: { success: false, message: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.headers['x-test-bypass'] === 'clearflow-test',
+  skip: (req) => process.env.NODE_ENV === 'test' && req.headers['x-test-bypass'] === 'clearflow-test',
 });

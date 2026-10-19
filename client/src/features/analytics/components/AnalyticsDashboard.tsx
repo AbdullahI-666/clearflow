@@ -22,7 +22,7 @@ export const AnalyticsDashboard = () => {
     const fetchAnalytics = async () => {
       try {
         const [dashRes, predRes] = await Promise.allSettled([
-          apiClient.get(ENDPOINTS.ANALYTICS.DASHBOARD),
+          apiClient.get(`${ENDPOINTS.ANALYTICS.DASHBOARD}?period=${period}`),
           apiClient.get(ENDPOINTS.ANALYTICS.PREDICT),
         ]);
 
@@ -44,7 +44,7 @@ export const AnalyticsDashboard = () => {
   }, [period]);
 
   const handleExport = (format: 'csv' | 'pdf') => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('clearflow_token') || localStorage.getItem('token');
     window.open(`/api/analytics/export?format=${format}&token=${token}`, '_blank');
     toast.success(`Exporting analytics ${format.toUpperCase()} report...`);
   };

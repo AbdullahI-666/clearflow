@@ -116,9 +116,8 @@ export const InvoiceManagement = () => {
   };
 
   const handleDownloadInvoicePdf = async (invId: string, invoiceCode: string) => {
-    const token = localStorage.getItem('token');
     try {
-      toast.info('Downloading digital invoice PDF...');
+      toast.info('Downloading official commercial invoice PDF...');
       const res = await apiClient.get(`/invoices/${invId}/pdf`, { responseType: 'blob' });
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -128,11 +127,24 @@ export const InvoiceManagement = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      // Keep URL active for 10 seconds so the browser can finish reading the stream
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       toast.success('Invoice PDF downloaded successfully!');
-    } catch (err) {
-      window.open(`/api/invoices/${invId}/pdf?token=${token}`, '_blank');
-      toast.success('Opening invoice PDF...');
+    } catch (err: any) {
+      if (err.response?.data instanceof Blob) {
+        try {
+          const errText = await err.response.data.text();
+          const parsed = JSON.parse(errText);
+          toast.error(parsed.message || 'Failed to download invoice PDF');
+          return;
+        } catch (_) {}
+      }
+      const token = localStorage.getItem('clearflow_token') || localStorage.getItem('token');
+      if (token) {
+        window.open(`/api/invoices/${invId}/pdf?token=${token}`, '_blank');
+      } else {
+        toast.error('Authentication expired. Please log in again.');
+      }
     }
   };
 

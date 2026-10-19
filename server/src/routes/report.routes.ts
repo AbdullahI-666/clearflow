@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/rbac.middleware.js';
 
 const router = Router();
-router.use(authenticate, authorize(['Client', 'Admin']));
+router.use(authenticate, authorize(['Client', 'Admin', 'FieldTeam']));
 router.get('/:id/pdf', reportController.getReport);
 router.get('/:id/invoice', reportController.getInvoice);
 export default router;
