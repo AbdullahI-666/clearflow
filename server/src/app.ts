@@ -35,6 +35,7 @@ const possibleDistPaths = [
 const clientDistPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors({ origin: ENV.CORS_ORIGIN || '*' }));
 app.use(generalLimiter);
