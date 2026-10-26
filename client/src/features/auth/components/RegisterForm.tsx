@@ -78,7 +78,18 @@ export const RegisterForm = () => {
         setError(response.data?.message || 'Registration failed');
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Registration failed. Please check your details and try again.';
+      const isNetworkOrTimeout = !err.response || err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.message?.includes('Network Error');
+      const status = err.response?.status;
+      let msg = err.response?.data?.message;
+
+      if (status === 409) {
+        msg = 'An account with this email already exists. Please sign in or reset your password.';
+      } else if (isNetworkOrTimeout) {
+        msg = 'Connection timeout: Backend server is waking up. Please click Register again in 10-15 seconds.';
+      } else if (!msg) {
+        msg = 'Registration failed. Please check your details and try again.';
+      }
+
       setError(msg);
       toast.error(msg);
     } finally {
