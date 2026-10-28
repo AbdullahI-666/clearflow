@@ -5,7 +5,8 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 
 export const register = async (req: Request, res: Response) => {
   const { name, email, password, role, phone } = req.body;
-  const result = await authService.register(name, email, password, role, phone);
+  const originBaseUrl = (req.headers.origin as string) || (req.headers.referer ? new URL(req.headers.referer as string).origin : '') || '';
+  const result = await authService.register(name, email, password, role, phone, originBaseUrl);
   res.status(201).json(ApiResponse.created(result, result.message || 'Registration successful'));
 };
 
@@ -27,7 +28,8 @@ export const verifyEmail = async (req: Request, res: Response) => {
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {
-  const result = await authService.forgotPassword(req.body.email);
+  const originBaseUrl = (req.headers.origin as string) || (req.headers.referer ? new URL(req.headers.referer as string).origin : '') || '';
+  const result = await authService.forgotPassword(req.body.email, originBaseUrl);
   res.json(ApiResponse.success({ resetUrl: result.resetUrl }, result.message));
 };
 

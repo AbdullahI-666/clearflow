@@ -80,10 +80,16 @@ export const RegisterForm = () => {
     } catch (err: any) {
       const isNetworkOrTimeout = !err.response || err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.message?.includes('Network Error');
       const status = err.response?.status;
-      let msg = err.response?.data?.message;
+      let msg = '';
+
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors) && err.response.data.errors.length > 0) {
+        msg = err.response.data.errors.map((e: any) => e.msg).join('. ');
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      }
 
       if (status === 409) {
-        msg = 'An account with this email already exists. Please sign in or reset your password.';
+        msg = 'An account with this email address already exists. Please sign in or reset your password.';
       } else if (isNetworkOrTimeout) {
         msg = 'Connection timeout: Backend server is waking up. Please click Register again in 10-15 seconds.';
       } else if (!msg) {
@@ -189,7 +195,7 @@ export const RegisterForm = () => {
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
-                placeholder="Sarah Miller"
+                placeholder="e.g. Abdullah Ikram"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -198,16 +204,17 @@ export const RegisterForm = () => {
             </div>
             
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">Email Address (Any Domain)</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="name@organization.com"
+                placeholder="e.g. name@gmail.com, name@yahoo.com, or corporate email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="focus-visible:ring-teal-500"
               />
+              <p className="text-[11px] text-gray-500">Open to all global domains (Gmail, Outlook, Yahoo, Hotmail, custom/corporate)</p>
             </div>
 
             <div className="space-y-1.5">
@@ -215,7 +222,7 @@ export const RegisterForm = () => {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="+1 555 123 4567"
+                placeholder="e.g. 0300 1234567 or +92 300 1234567"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required

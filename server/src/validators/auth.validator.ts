@@ -4,7 +4,7 @@ export const registerValidator = [
   body('email').isEmail().withMessage('Please provide a valid email address'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('name').trim().notEmpty().withMessage('Full name is required'),
-  body('role').optional().isIn(['Client']).withMessage('Public registration only permits the Client role'),
+  body('role').optional().isIn(['Client', 'FieldTeam']).withMessage('Role must be Client or FieldTeam'),
   body('phone').trim().notEmpty().withMessage('Phone number is required'),
 ];
 

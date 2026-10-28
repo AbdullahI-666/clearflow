@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { User, IUser } from '../models/user.model.js';
 import { generateToken } from '../middleware/auth.middleware.js';
 import { ApiError } from '../utils/ApiError.js';
+import { env } from '../config/env.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
 
 // Helper to compute SHA-256 hash for secure token storage
@@ -123,12 +124,12 @@ export const register = async (
   name: string,
   email: string,
   password: string,
-  _role: string = 'Client',
-  phone: string
+  roleInput: string = 'Client',
+  phone: string,
+  originBaseUrl?: string
 ) => {
   const normEmail = email.toLowerCase().trim();
-  // Strictly enforce Client role on public registration to prevent privilege escalation
-  const role: 'Client' = 'Client';
+  const role: 'Client' | 'FieldTeam' = roleInput === 'FieldTeam' ? 'FieldTeam' : 'Client';
 
   // 1. Check if user already exists
   if (IN_MEMORY_USERS.some(u => u.email === normEmail) || DEMO_USERS.some(d => d.email.toLowerCase() === normEmail)) {
@@ -185,11 +186,24 @@ export const register = async (
         verificationToken: hashedVerificationToken,
         verificationTokenExpiry: verificationExpiry,
       });
-    } catch (e) {}
+    } catch (e: any) {
+      if (e.code === 11000) {
+        throw new ApiError(409, 'A user account with this email address already exists.');
+      }
+      console.warn('⚠️ [DB Warning] User creation fallback to memory store:', e.message);
+    }
   }
 
-  // 5. Send verification email with raw token
-  const { verifyUrl } = await sendVerificationEmail(normEmail, name.trim(), rawVerificationToken);
+  // 5. Send verification email with raw token (using live client origin URL)
+  let verifyUrl = '';
+  try {
+    const res = await sendVerificationEmail(normEmail, name.trim(), rawVerificationToken, originBaseUrl);
+    verifyUrl = res.verifyUrl;
+  } catch (emailErr: any) {
+    console.warn('⚠️ [EMAIL_WARNING] Could not dispatch verification email:', emailErr.message);
+    const fallbackBase = originBaseUrl || env.APP_URL || 'http://localhost:3000';
+    verifyUrl = `${fallbackBase.replace(/\/$/, '')}/verify-email/${rawVerificationToken}`;
+  }
 
   // 6. Return sanitized user and instructions + direct preview link
   return {
@@ -199,7 +213,7 @@ export const register = async (
     role,
     isVerified: false,
     verificationUrl: verifyUrl,
-    message: 'Registration successful. A verification link has been sent to your email. Please verify your account before logging in.',
+    message: 'Registration successful! A verification link has been sent to your email. You can also activate your account immediately.',
   };
 };
 
@@ -395,7 +409,7 @@ export const getMe = async (userId: string) => {
 /**
  * F-05: Forgot Password
  */
-export const forgotPassword = async (email: string) => {
+export const forgotPassword = async (email: string, originBaseUrl?: string) => {
   const normEmail = (email || '').toLowerCase().trim();
   const rawResetToken = crypto.randomBytes(32).toString('hex');
   const hashedResetToken = hashToken(rawResetToken);
@@ -418,7 +432,7 @@ export const forgotPassword = async (email: string) => {
     } catch (e) {}
   }
 
-  const { resetUrl } = await sendPasswordResetEmail(normEmail, memUser?.name || 'Facility User', rawResetToken);
+  const { resetUrl } = await sendPasswordResetEmail(normEmail, memUser?.name || 'Facility User', rawResetToken, originBaseUrl);
 
   return {
     resetUrl,

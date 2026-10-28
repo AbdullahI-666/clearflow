@@ -87,9 +87,9 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   return true;
 };
 
-export const sendVerificationEmail = async (email: string, name: string, rawToken: string) => {
-  const baseUrl = env.APP_URL || 'http://localhost:3000';
-  const verifyUrl = `${baseUrl}/verify-email/${rawToken}`;
+export const sendVerificationEmail = async (email: string, name: string, rawToken: string, customBaseUrl?: string) => {
+  const baseUrl = customBaseUrl || env.APP_URL || 'http://localhost:3000';
+  const verifyUrl = `${baseUrl.replace(/\/$/, '')}/verify-email/${rawToken}`;
   const subject = 'Activate Your ClearFlow Account — Verify Your Email';
   const text = `Hello ${name},\n\nThank you for registering on ClearFlow — AI-Powered Facility Management System.\n\nPlease verify your email address by clicking the link below:\n${verifyUrl}\n\nIf you did not create this account, please ignore this email.\n\nBest regards,\nClearFlow Team`;
   const html = `
@@ -110,13 +110,17 @@ export const sendVerificationEmail = async (email: string, name: string, rawToke
     </div>
   `;
 
-  await sendEmail({ to: email, subject, text, html });
+  try {
+    await sendEmail({ to: email, subject, text, html });
+  } catch (err: any) {
+    console.warn(`⚠️ [EMAIL_WARNING] Could not dispatch verification email to ${email}:`, err.message);
+  }
   return { verifyUrl };
 };
 
-export const sendPasswordResetEmail = async (email: string, name: string, rawToken: string) => {
-  const baseUrl = env.APP_URL || 'http://localhost:3000';
-  const resetUrl = `${baseUrl}/reset-password/${rawToken}`;
+export const sendPasswordResetEmail = async (email: string, name: string, rawToken: string, customBaseUrl?: string) => {
+  const baseUrl = customBaseUrl || env.APP_URL || 'http://localhost:3000';
+  const resetUrl = `${baseUrl.replace(/\/$/, '')}/reset-password/${rawToken}`;
   const subject = 'Reset Your ClearFlow Password';
   const text = `Hello ${name},\n\nA password reset request was received for your ClearFlow account.\n\nClick the link below to set a new password (link expires in 1 hour):\n${resetUrl}\n\nIf you did not request a password reset, you can safely ignore this email.\n\nBest regards,\nClearFlow Team`;
   const html = `
@@ -138,6 +142,10 @@ export const sendPasswordResetEmail = async (email: string, name: string, rawTok
     </div>
   `;
 
-  await sendEmail({ to: email, subject, text, html });
+  try {
+    await sendEmail({ to: email, subject, text, html });
+  } catch (err: any) {
+    console.warn(`⚠️ [EMAIL_WARNING] Could not dispatch reset email to ${email}:`, err.message);
+  }
   return { resetUrl };
 };
