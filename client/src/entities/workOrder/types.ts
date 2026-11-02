@@ -80,5 +80,19 @@ export interface AiVerificationDetails {
   };
   findings?: string[];
   serviceRecommendation?: string;
+  categoryVerification?: {
+    category: string;
+    icon: string;
+    specializedChecks: Array<{
+      name: string;
+      passed: boolean;
+      detail: string;
+      score: number;
+      icon?: string;
+    }>;
+    complianceCertificateEligible: boolean;
+    certificateCode?: string;
+    summary: string;
+  };
 }
 

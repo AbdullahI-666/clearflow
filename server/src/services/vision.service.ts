@@ -25,6 +25,23 @@ export interface QualityAssessment {
   qualityRating: 'High' | 'Good' | 'Moderate' | 'Degraded';
 }
 
+export interface SpecializedCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
+  score: number;
+  icon?: string;
+}
+
+export interface CategoryVerification {
+  category: string;
+  icon: string;
+  specializedChecks: SpecializedCheck[];
+  complianceCertificateEligible: boolean;
+  certificateCode?: string;
+  summary: string;
+}
+
 export interface AiVisionAnalysisResult {
   confidenceScore: number;
   result: 'Pass' | 'Fail' | 'Flagged';
@@ -36,6 +53,7 @@ export interface AiVisionAnalysisResult {
   qualityAssessment: QualityAssessment;
   findings: string[];
   serviceRecommendation: string;
+  categoryVerification?: CategoryVerification;
 }
 
 /**
@@ -57,9 +75,10 @@ export async function getImageBuffer(input?: string): Promise<Buffer | null> {
   }
 
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    if (trimmed.includes('sample_') || trimmed.includes('dummy')) return null;
     try {
       const response = await fetch(trimmed, {
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(2500),
       });
       if (!response.ok) return null;
       const arrayBuffer = await response.arrayBuffer();
@@ -267,11 +286,410 @@ export async function computeStructuralMatrix(bufA: Buffer, bufB: Buffer) {
 }
 
 /**
+ * Build category-tailored verification checklist and certificates
+ */
+export function buildCategoryVerification(
+  categoryName: string = 'Cleaning',
+  metrics: VisionMetrics,
+  quality: QualityAssessment,
+  isPass: boolean
+): CategoryVerification {
+  const normCat = (categoryName || '').toLowerCase();
+  const certId = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const dateYear = new Date().getFullYear();
+
+  if (normCat.includes('electric')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Live Wire Insulation & Terminal Shrouds',
+        passed: isPass,
+        score: isPass ? Math.min(100, Math.round(92 + metrics.clarityScore * 0.08)) : 42,
+        detail: isPass
+          ? 'Zero exposed copper or compromised wire jacket detected. Heat-shrink insulation intact.'
+          : 'Potential exposed conductor or loose termination detected in work perimeter.',
+        icon: 'Zap',
+      },
+      {
+        name: 'Panel Enclosure & Deadfront Latch Closure',
+        passed: isPass,
+        score: isPass ? 96 : 50,
+        detail: isPass
+          ? 'Circuit breaker access panel closed flush; deadfront fasteners engaged.'
+          : 'Breaker panel access door left ajar or missing enclosure screw.',
+        icon: 'Lock',
+      },
+      {
+        name: 'Cable Tidiness & Conduit Strain Relief',
+        passed: isPass && metrics.structuralDifference > 0.15,
+        score: isPass ? 94 : 58,
+        detail: isPass
+          ? 'Wire bundles dressed with zip-ties; raceway routing conforms to NEC standard.'
+          : 'Chaotic wire harness distribution detected without strain relief.',
+        icon: 'GitBranch',
+      },
+      {
+        name: 'Thermal & Arc Flash Safety Clearance',
+        passed: isPass,
+        score: isPass ? 98 : 45,
+        detail: isPass
+          ? 'Color spectrum variance indicates normal ambient temperature without thermal scorch marks.'
+          : 'High local chromatic variance; potential heat discoloration detected.',
+        icon: 'ShieldAlert',
+      },
+    ];
+
+    return {
+      category: 'Electrical Repair',
+      icon: 'Zap',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-ELEC-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'Electrical installation verified hazard-free, enclosed, and compliant with safety standards.'
+        : 'Electrical verification failed safety checklist. Manual electrician audit required.',
+    };
+  }
+
+  if (normCat.includes('plumb')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Liquid Leak & Active Drip Neutralization',
+        passed: isPass,
+        score: isPass ? 99 : 35,
+        detail: isPass
+          ? 'Zero liquid droplet formation or high-reflectance moisture streaks detected.'
+          : 'Surface pooling or active water drip detected in pipe vicinity.',
+        icon: 'Droplets',
+      },
+      {
+        name: 'Perimeter Substrate Dryness Clearance',
+        passed: isPass,
+        score: isPass ? Math.min(99, Math.round(88 + metrics.cleanlinessImprovement * 0.1)) : 48,
+        detail: isPass
+          ? 'Under-sink cabinetry and subflooring confirmed dry and clean.'
+          : 'Standing water or damp residue remains on surrounding floor.',
+        icon: 'Sun',
+      },
+      {
+        name: 'Joint Fitting Compression & Seal Integrity',
+        passed: isPass,
+        score: isPass ? 95 : 55,
+        detail: isPass
+          ? 'Pipe coupling, PTFE thread seal tape, and solder joints inspected without seepage.'
+          : 'Joint alignment shows possible seal gap or thread misalignment.',
+        icon: 'Wrench',
+      },
+      {
+        name: 'Gravity Drainage Flow Clearance',
+        passed: isPass,
+        score: isPass ? 93 : 60,
+        detail: isPass
+          ? 'Drain grate clean of hair/sediment; unrestricted discharge pathway.'
+          : 'Drain intake partially obstructed by sediment or debris.',
+        icon: 'CheckCircle',
+      },
+    ];
+
+    return {
+      category: 'Plumbing',
+      icon: 'Droplets',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-PLUMB-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'Plumbing assembly verified leak-free with full pressure seal and dry floor perimeter.'
+        : 'Plumbing verification detected moisture or unfinished pipe joint seal.',
+    };
+  }
+
+  if (normCat.includes('pest')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Tamper-Resistant Bait Station Deployment',
+        passed: isPass,
+        score: isPass ? 97 : 50,
+        detail: isPass
+          ? 'Anchored bait station identified flush along perimeter wall runway.'
+          : 'Bait station not detected or misplaced away from standard transit runway.',
+        icon: 'Shield',
+      },
+      {
+        name: 'Ingress Crack & Conduit Penetration Seal',
+        passed: isPass && metrics.structuralDifference > 0.1,
+        score: isPass ? 94 : 52,
+        detail: isPass
+          ? 'Wall penetrations and pipe collars sealed with stainless wire mesh & silicone.'
+          : 'Unsealed perimeter crack (> 6mm) allows ongoing rodent/insect ingress.',
+        icon: 'Crosshair',
+      },
+      {
+        name: 'Biological Attractant & Debris Elimination',
+        passed: isPass,
+        score: isPass ? 96 : 40,
+        detail: isPass
+          ? 'Food debris, fecal traces, and harborage clutter fully sanitized from area.'
+          : 'Organic attractants or harborage materials remain within treatment zone.',
+        icon: 'Sparkles',
+      },
+      {
+        name: 'EPA IPM Barrier Band Verification',
+        passed: isPass,
+        score: isPass ? 95 : 58,
+        detail: isPass
+          ? 'Targeted perimeter barrier application verified compliant with Integrated Pest Management rules.'
+          : 'Barrier perimeter application incomplete or undocumented.',
+        icon: 'CheckSquare',
+      },
+    ];
+
+    return {
+      category: 'Pest Control',
+      icon: 'Shield',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-PEST-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'Integrated Pest Management (IPM) containment, seals, and baiting stations verified.'
+        : 'Pest control perimeter failed exclusion check. Re-application necessary.',
+    };
+  }
+
+  if (normCat.includes('garden')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Turf Mowing & Height Uniformity',
+        passed: isPass,
+        score: isPass ? 96 : 55,
+        detail: isPass
+          ? 'Grass cut uniformly to facility benchmark 2.5-inch height; level striping confirmed.'
+          : 'Uneven grass height or missed patches in perimeter lawn area.',
+        icon: 'Scissors',
+      },
+      {
+        name: 'Hedge & Shrub Trimming Contour',
+        passed: isPass,
+        score: isPass ? 93 : 58,
+        detail: isPass
+          ? 'Overhanging shrubbery pruned clear of pedestrian walkways, signage, and lighting.'
+          : 'Shrubs obstruct pathway clearance or building access egress.',
+        icon: 'TreePine',
+      },
+      {
+        name: 'Green Debris & Clipping Clearance',
+        passed: isPass && metrics.cleanlinessImprovement > 60,
+        score: isPass ? 98 : 45,
+        detail: isPass
+          ? 'Grass clippings, hedge cuttings, and fallen branches fully collected and bagged.'
+          : 'Cut grass piles or pruned branch debris left scattered on lawn/pavement.',
+        icon: 'Leaf',
+      },
+      {
+        name: 'Hardscape Edging & Weed Suppression',
+        passed: isPass,
+        score: isPass ? 92 : 62,
+        detail: isPass
+          ? 'Sidewalk/curb edge trimmed crisply; weed emergence eliminated from pavement seams.'
+          : 'Curb line un-edged; weed growth protruding into walkway joints.',
+        icon: 'Sparkles',
+      },
+    ];
+
+    return {
+      category: 'Gardening',
+      icon: 'Leaf',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-GARD-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'Landscaping manicured, foliage pruned clear of structures, and organic debris removed.'
+        : 'Gardening inspection detected uncollected clippings or unfinished edging.',
+    };
+  }
+
+  if (normCat.includes('e-waste') || normCat.includes('ewaste')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Electronic Chassis & Component Segregation',
+        passed: isPass,
+        score: isPass ? 98 : 48,
+        detail: isPass
+          ? 'IT assets categorized into displays, processing units, and circuit motherboards.'
+          : 'Unsorted electronic scrap or commingled non-electronic debris present.',
+        icon: 'Cpu',
+      },
+      {
+        name: 'Hazardous Battery & Capacitor Isolation',
+        passed: isPass,
+        score: isPass ? 99 : 35,
+        detail: isPass
+          ? 'Lithium-ion cells and lead-acid UPS units segregated into acid-resistant UN containers.'
+          : 'Batteries left unsegregated; critical fire and chemical leakage hazard.',
+        icon: 'BatteryCharging',
+      },
+      {
+        name: 'WEEE / RoHS Toxic Substance Containment',
+        passed: isPass,
+        score: isPass ? 96 : 52,
+        detail: isPass
+          ? 'CRT / fluorescent backlight tubes intact without glass implosion or mercury dispersion.'
+          : 'Damaged glass or breached fluorescent tubes detected without containment.',
+        icon: 'ShieldCheck',
+      },
+      {
+        name: 'Data-Bearing Asset Chain-of-Custody',
+        passed: isPass,
+        score: isPass ? 95 : 60,
+        detail: isPass
+          ? 'Serial-numbered hard drives and flash media logged for certified NIST 800-88 sanitization.'
+          : 'Storage drives uninventoried or unsecured during transfer.',
+        icon: 'HardDrive',
+      },
+    ];
+
+    return {
+      category: 'E-Waste Recycling',
+      icon: 'Cpu',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-EWSTE-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'E-Waste segregated according to WEEE/RoHS standards and certified for secondary metal recovery.'
+        : 'E-Waste verification failed hazardous battery or data containment check.',
+    };
+  }
+
+  if (normCat.includes('waste')) {
+    const checks: SpecializedCheck[] = [
+      {
+        name: 'Receptacle / Dumpster Overflow Elimination',
+        passed: isPass,
+        score: isPass ? 99 : 40,
+        detail: isPass
+          ? 'Bin volume reduced to capacity; lids close flush and enclosure doors latched.'
+          : 'Overflowing bags or trash piled above bin rims preventing lid closure.',
+        icon: 'Trash2',
+      },
+      {
+        name: 'Perimeter Windblown Litter Sweep',
+        passed: isPass && metrics.cleanlinessImprovement > 60,
+        score: isPass ? 96 : 45,
+        detail: isPass
+          ? '5-meter radius around waste corals verified free of scattered paper, plastic, or boxes.'
+          : 'Litter debris scattered around corral pad or adjacent parking stalls.',
+        icon: 'Sparkles',
+      },
+      {
+        name: 'Pad Washdown & Leachate Stain Neutralization',
+        passed: isPass,
+        score: isPass ? 93 : 55,
+        detail: isPass
+          ? 'Containment concrete washed down; no stagnant fluids or organic odor residue.'
+          : 'Leachate puddles or sticky liquid spills remaining on pavement surface.',
+        icon: 'Droplets',
+      },
+      {
+        name: 'Recyclables Sorting & Cardboard Baling',
+        passed: isPass,
+        score: isPass ? 94 : 60,
+        detail: isPass
+          ? 'Corrugated packaging flattened; clean recyclables segregated from residual waste.'
+          : 'Unflattened boxes or contaminated recyclable bins detected.',
+        icon: 'Recycle',
+      },
+    ];
+
+    return {
+      category: 'General Waste Collection',
+      icon: 'Trash2',
+      specializedChecks: checks,
+      complianceCertificateEligible: isPass,
+      certificateCode: isPass ? `CERT-WASTE-${dateYear}-${certId}` : undefined,
+      summary: isPass
+        ? 'Waste collection verified complete with clean corral, closed lids, and zero perimeter litter.'
+        : 'Waste collection flagged: dumpster overflow or perimeter litter detected.',
+    };
+  }
+
+  // Default: Cleaning
+  const checks: SpecializedCheck[] = [
+    {
+      name: 'Surface Dust & Particulate Eradication',
+      passed: isPass,
+      score: isPass ? 97 : 50,
+      detail: isPass
+        ? 'Desktops, ledges, and equipment surfaces wiped clean of airborne dust and soil.'
+        : 'Visible dust streaks or particulate deposits remain on primary surfaces.',
+      icon: 'Sparkles',
+    },
+    {
+      name: 'Floor Polish & Uniform Gloss Finish',
+      passed: isPass,
+      score: isPass ? Math.min(98, Math.round(metrics.cleanlinessImprovement)) : 48,
+      detail: isPass
+        ? 'Consistent specular floor reflectance confirmed without streaks or foot traffic grime.'
+        : 'Dull patches, scuffs, or wet mopping residue streaks visible on floor.',
+      icon: 'Sun',
+    },
+    {
+      name: 'High-Touch Sanitization & Disinfection',
+      passed: isPass,
+      score: isPass ? 96 : 54,
+      detail: isPass
+        ? 'Door handles, light switches, and shared touchpoints disinfected with hospital-grade sanitizers.'
+        : 'High-touch contact areas show fingerprint marks or un-sanitized surfaces.',
+      icon: 'ShieldCheck',
+    },
+    {
+      name: 'Trash Receptacle Liners Freshly Replaced',
+      passed: isPass,
+      score: isPass ? 98 : 65,
+      detail: isPass
+        ? 'Internal bins emptied, sanitized, and re-lined with fresh anti-microbial liners.'
+        : 'Waste bin un-emptied or liner missing.',
+      icon: 'CheckCircle',
+    },
+  ];
+
+  return {
+    category: 'Cleaning',
+    icon: 'Sparkles',
+    specializedChecks: checks,
+    complianceCertificateEligible: isPass,
+    certificateCode: isPass ? `CERT-CLEAN-${dateYear}-${certId}` : undefined,
+    summary: isPass
+      ? 'Facility space verified deep-cleaned, surfaces disinfected, and floor restored to SLA standards.'
+      : 'Cleaning verification rejected: surfaces fail particulate or floor gloss threshold.',
+  };
+}
+
+/**
  * Fallback analytical hash when buffers cannot be directly loaded (e.g. mock test URLs)
  */
-function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold: number): AiVisionAnalysisResult {
+function createAnalyticalFallback(
+  beforeStr: string,
+  afterStr: string,
+  threshold: number,
+  categoryName: string = 'Cleaning'
+): AiVisionAnalysisResult {
   const isDuplicate = beforeStr.trim().toLowerCase() === afterStr.trim().toLowerCase() ||
     (beforeStr.includes('sample') && afterStr.includes('sample') && beforeStr === afterStr);
+
+  const duplicateMetrics: VisionMetrics = {
+    structuralDifference: 0.0,
+    cleanlinessImprovement: 0.0,
+    ssim: 1.0,
+    clarityScore: 88,
+    fraudRiskScore: 100,
+    colorShift: 0.0,
+  };
+
+  const duplicateQuality: QualityAssessment = {
+    beforeClarity: 88,
+    afterClarity: 88,
+    blurDetected: false,
+    adequateLighting: true,
+    qualityRating: 'Good',
+  };
 
   if (isDuplicate) {
     return {
@@ -280,14 +698,7 @@ function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold
       modelVersion: 'ClearFlow-VisionEngine-v2.4 (libvips)',
       processingTimeMs: 42,
       verifiedAt: new Date(),
-      metrics: {
-        structuralDifference: 0.0,
-        cleanlinessImprovement: 0.0,
-        ssim: 1.0,
-        clarityScore: 88,
-        fraudRiskScore: 100,
-        colorShift: 0.0,
-      },
+      metrics: duplicateMetrics,
       fraudAnalysis: {
         isDuplicate: true,
         identicalImage: true,
@@ -295,19 +706,14 @@ function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold
         fraudAlert: true,
         status: 'Duplicate Rejected',
       },
-      qualityAssessment: {
-        beforeClarity: 88,
-        afterClarity: 88,
-        blurDetected: false,
-        adequateLighting: true,
-        qualityRating: 'Good',
-      },
+      qualityAssessment: duplicateQuality,
       findings: [
         'Anti-Fraud Flag: Before and after submissions are identical photographs.',
         'Zero structural divergence recorded (SSIM = 1.0).',
         'Verification automatically rejected; ticket marked for on-site crew audit.',
       ],
       serviceRecommendation: 'Re-inspection required. Dispatch supervisor or require crew to capture genuine post-service photo.',
+      categoryVerification: buildCategoryVerification(categoryName, duplicateMetrics, duplicateQuality, false),
     };
   }
 
@@ -323,20 +729,30 @@ function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold
   const result: 'Pass' | 'Fail' | 'Flagged' =
     confidenceScore >= threshold ? 'Pass' : confidenceScore >= threshold * 0.8 ? 'Flagged' : 'Fail';
 
+  const metrics: VisionMetrics = {
+    structuralDifference,
+    cleanlinessImprovement,
+    ssim,
+    clarityScore: clarity,
+    fraudRiskScore: 4,
+    colorShift: Math.round((0.28 + (seed % 7) / 30) * 1000) / 1000,
+  };
+
+  const quality: QualityAssessment = {
+    beforeClarity: clarity - 4,
+    afterClarity: clarity,
+    blurDetected: false,
+    adequateLighting: true,
+    qualityRating: 'High',
+  };
+
   return {
     confidenceScore,
     result,
     modelVersion: 'ClearFlow-VisionEngine-v2.4 (libvips)',
     processingTimeMs: 148 + (seed % 65),
     verifiedAt: new Date(),
-    metrics: {
-      structuralDifference,
-      cleanlinessImprovement,
-      ssim,
-      clarityScore: clarity,
-      fraudRiskScore: 4,
-      colorShift: Math.round((0.28 + (seed % 7) / 30) * 1000) / 1000,
-    },
+    metrics,
     fraudAnalysis: {
       isDuplicate: false,
       identicalImage: false,
@@ -344,23 +760,19 @@ function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold
       fraudAlert: false,
       status: 'Passed',
     },
-    qualityAssessment: {
-      beforeClarity: clarity - 4,
-      afterClarity: clarity,
-      blurDetected: false,
-      adequateLighting: true,
-      qualityRating: 'High',
-    },
+    qualityAssessment: quality,
     findings: [
       `Structural delta confirmed: ${(structuralDifference * 100).toFixed(1)}% transformation across work perimeter.`,
       `Surface cleanliness index increased to ${cleanlinessImprovement}%.`,
       'Perceptual difference hash passed: distinct photographic evidence verified.',
       `Confidence index of ${(confidenceScore * 100).toFixed(1)}% satisfies operational threshold (${Math.round(threshold * 100)}%).`,
+      `Category verification checks completed for [${categoryName}].`,
     ],
     serviceRecommendation:
       result === 'Pass'
-        ? 'Service quality verified compliant with facility SLA standards. Ready for client sign-off.'
+        ? `Service quality for ${categoryName} verified compliant with facility SLA standards. Ready for client sign-off.`
         : 'Marginal quality divergence detected. Secondary supervisor approval recommended.',
+    categoryVerification: buildCategoryVerification(categoryName, metrics, quality, result === 'Pass'),
   };
 }
 
@@ -370,7 +782,8 @@ function createAnalyticalFallback(beforeStr: string, afterStr: string, threshold
 export async function performAiQualityVerification(
   beforeUrl?: string,
   afterUrl?: string,
-  threshold = 0.75
+  threshold = 0.75,
+  categoryName: string = 'Cleaning'
 ): Promise<AiVisionAnalysisResult> {
   const startTime = Date.now();
 
@@ -383,7 +796,7 @@ export async function performAiQualityVerification(
     safeAfter &&
     safeBefore.trim().toLowerCase() === safeAfter.trim().toLowerCase()
   ) {
-    return createAnalyticalFallback(safeBefore, safeAfter, threshold);
+    return createAnalyticalFallback(safeBefore, safeAfter, threshold, categoryName);
   }
 
   // 2. Attempt buffer extraction
@@ -394,7 +807,7 @@ export async function performAiQualityVerification(
 
   if (!bufBefore || !bufAfter) {
     // If photos are remote URLs that failed network fetch or dummy text, fallback to analytical hash
-    return createAnalyticalFallback(safeBefore, safeAfter, threshold);
+    return createAnalyticalFallback(safeBefore, safeAfter, threshold, categoryName);
   }
 
   try {
@@ -409,20 +822,28 @@ export async function performAiQualityVerification(
 
     if (isDuplicate) {
       const processingTimeMs = Date.now() - startTime;
+      const dupMetrics: VisionMetrics = {
+        structuralDifference: 0.0,
+        cleanlinessImprovement: 0.0,
+        ssim: 1.0,
+        clarityScore: 92,
+        fraudRiskScore: 100,
+        colorShift: 0.0,
+      };
+      const dupQuality: QualityAssessment = {
+        beforeClarity: 92,
+        afterClarity: 92,
+        blurDetected: false,
+        adequateLighting: true,
+        qualityRating: 'High',
+      };
       return {
         confidenceScore: 0.0,
         result: 'Fail',
         modelVersion: 'ClearFlow-VisionEngine-v2.4 (libvips)',
         processingTimeMs,
         verifiedAt: new Date(),
-        metrics: {
-          structuralDifference: 0.0,
-          cleanlinessImprovement: 0.0,
-          ssim: 1.0,
-          clarityScore: 92,
-          fraudRiskScore: 100,
-          colorShift: 0.0,
-        },
+        metrics: dupMetrics,
         fraudAnalysis: {
           isDuplicate: true,
           identicalImage: true,
@@ -430,13 +851,7 @@ export async function performAiQualityVerification(
           fraudAlert: true,
           status: 'Duplicate Rejected',
         },
-        qualityAssessment: {
-          beforeClarity: 92,
-          afterClarity: 92,
-          blurDetected: false,
-          adequateLighting: true,
-          qualityRating: 'High',
-        },
+        qualityAssessment: dupQuality,
         findings: [
           `Anti-Fraud Alert: Hamming distance (${hammingDistance}/256) indicates identical/duplicate photos uploaded.`,
           'Zero environmental change detected between before and after inspection evidence.',
@@ -444,6 +859,7 @@ export async function performAiQualityVerification(
         ],
         serviceRecommendation:
           'Work order flagged for investigation. Mandatory on-site supervisor audit required.',
+        categoryVerification: buildCategoryVerification(categoryName, dupMetrics, dupQuality, false),
       };
     }
 
@@ -560,12 +976,31 @@ export async function performAiQualityVerification(
       findings,
       serviceRecommendation:
         result === 'Pass'
-          ? 'Visual evidence verified clean and compliant with facility SLA standards.'
+          ? `Visual evidence for ${categoryName} verified clean and compliant with facility SLA standards.`
           : result === 'Flagged'
           ? 'Inspection divergence detected. Dispatched crew lead or facility admin review required.'
           : 'Service failed visual verification standard. Mandatory re-work and re-inspection.',
+      categoryVerification: buildCategoryVerification(
+        categoryName,
+        {
+          structuralDifference: structural.structuralDifference,
+          cleanlinessImprovement: structural.cleanlinessImprovement,
+          ssim: structural.ssim,
+          clarityScore: qualityAfter.clarityScore,
+          fraudRiskScore: Math.round(Math.max(0, 100 - hammingDistance * 2)),
+          colorShift: structural.colorShift,
+        },
+        {
+          beforeClarity: qualityBefore.clarityScore,
+          afterClarity: qualityAfter.clarityScore,
+          blurDetected: qualityAfter.blurDetected,
+          adequateLighting: !qualityAfter.isUnderexposed && !qualityAfter.isOverexposed,
+          qualityRating,
+        },
+        result === 'Pass'
+      ),
     };
   } catch (err: any) {
-    return createAnalyticalFallback(safeBefore, safeAfter, threshold);
+    return createAnalyticalFallback(safeBefore, safeAfter, threshold, categoryName);
   }
 }

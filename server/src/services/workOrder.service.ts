@@ -8,6 +8,7 @@ import { generateWorkOrderCode } from '../utils/generateCode.js';
 import { autoAssign } from './assignment.service.js';
 import { generateReport } from './pdf.service.js';
 import { verifyServiceQuality } from './ai.service.js';
+import { performAiQualityVerification } from './vision.service.js';
 import { env } from '../config/env.js';
 
 export const MOCK_CATEGORIES = [
@@ -196,14 +197,28 @@ export const getById = async (id: string) => {
     const wo = await Promise.race([
       WorkOrder.findById(id).populate(['clientId', 'teamId', 'categoryId']),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
-    ]);
-    if (wo) return wo;
+    ]) as any;
+    if (wo) {
+      if (wo.afterImageUrl && (!wo.aiVerificationDetails || !(wo.aiVerificationDetails as any).categoryVerification)) {
+        const catName = (wo.categoryId as any)?.name || 'Cleaning';
+        const aiVer = await performAiQualityVerification(wo.beforeImageUrl, wo.afterImageUrl, wo.aiConfidenceScore || 0.75, catName);
+        wo.aiVerificationDetails = aiVer;
+      }
+      return wo;
+    }
   } catch (err) {
     // Fallback
   }
 
   const mockWo = MOCK_WORK_ORDERS.find(w => w._id === id || w.workOrderCode === id);
-  if (mockWo) return mockWo;
+  if (mockWo) {
+    if (mockWo.afterImageUrl && (!(mockWo as any).aiVerificationDetails || !(mockWo as any).aiVerificationDetails?.categoryVerification)) {
+      const catName = typeof (mockWo.categoryId as any) === 'object' ? (mockWo.categoryId as any)?.name : 'Cleaning';
+      const aiVer = await performAiQualityVerification(mockWo.beforeImageUrl, mockWo.afterImageUrl, mockWo.aiConfidenceScore || 0.75, catName);
+      (mockWo as any).aiVerificationDetails = aiVer;
+    }
+    return mockWo;
+  }
   throw new ApiError(404, 'Work order not found');
 };
 
@@ -244,21 +259,30 @@ export const uploadBeforeImage = async (id: string, imageUrl: string) => {
 
 export const uploadAfterImage = async (id: string, imageUrl: string) => {
   let beforeUrl: string | undefined;
+  let categoryName: string | undefined;
 
   try {
-    const existing = await WorkOrder.findById(id);
+    const existing = await WorkOrder.findById(id).populate('categoryId');
     if (existing) {
       beforeUrl = existing.beforeImageUrl;
+      categoryName = (existing.categoryId as any)?.name;
     }
   } catch (err) {}
 
-  if (!beforeUrl) {
+  if (!beforeUrl || !categoryName) {
     const mockMatch = MOCK_WORK_ORDERS.find(w => w._id === id || w.workOrderCode === id);
-    if (mockMatch) beforeUrl = (mockMatch as any).beforeImageUrl;
+    if (mockMatch) {
+      if (!beforeUrl) beforeUrl = (mockMatch as any).beforeImageUrl;
+      if (!categoryName) {
+        categoryName = typeof (mockMatch as any).categoryId === 'object' && (mockMatch as any).categoryId
+          ? (mockMatch as any).categoryId.name
+          : 'Cleaning';
+      }
+    }
   }
 
-  // Run AI Verification with structural difference & fraud check (F-29)
-  const aiResult = await verifyServiceQuality(id, beforeUrl, imageUrl);
+  // Run AI Verification with structural difference, fraud check & category-specific checkers
+  const aiResult = await verifyServiceQuality(id, beforeUrl, imageUrl, undefined, categoryName);
   const confidence = aiResult.confidenceScore;
   const result = aiResult.result;
   const status = result === 'Pass' ? 'PendingReview' : 'Flagged';

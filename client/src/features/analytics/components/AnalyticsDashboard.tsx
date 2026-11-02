@@ -8,6 +8,7 @@ import { OrderVolumeChart } from './OrderVolumeChart';
 import { CategoryMixChart } from './CategoryMixChart';
 import { ResponseTimeChart } from './ResponseTimeChart';
 import { DemandByZoneChart } from './DemandByZoneChart';
+import { PredictiveDemandChart } from './PredictiveDemandChart';
 import { apiClient } from '@/infrastructure/api/client';
 import { ENDPOINTS } from '@/infrastructure/api/endpoints';
 import { toast } from 'sonner';
@@ -174,6 +175,9 @@ export const AnalyticsDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Interactive Category-Specific Predictive Demand Charts */}
+      <PredictiveDemandChart predictionData={prediction} />
 
       {/* F-33: Environmental Sustainability & Carbon Offset Metrics */}
       <Card className="border-none shadow-sm bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200">
