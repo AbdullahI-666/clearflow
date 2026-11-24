@@ -333,19 +333,26 @@ export function SignInCard2() {
     return () => clearTimeout(timer);
   }, []);
 
-  // For 3D card effect
+  // For 3D card effect (optimized without continuous reflow)
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const rotateX = useTransform(mouseY, [-350, 350], [9, -9]);
   const rotateY = useTransform(mouseX, [-350, 350], [-9, 9]);
+  const cardRectRef = useRef<DOMRect | null>(null);
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    cardRectRef.current = e.currentTarget.getBoundingClientRect();
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = cardRectRef.current || e.currentTarget.getBoundingClientRect();
+    cardRectRef.current = rect;
     mouseX.set(e.clientX - rect.left - rect.width / 2);
     mouseY.set(e.clientY - rect.top - rect.height / 2);
   };
 
   const handleMouseLeave = () => {
+    cardRectRef.current = null;
     mouseX.set(0);
     mouseY.set(0);
   };
@@ -459,7 +466,7 @@ export function SignInCard2() {
     } catch (err: any) {
       const isNetworkOrTimeout = !err.response || err.code === 'ECONNABORTED' || err.message?.includes('timeout') || err.message?.includes('Network Error');
       const status = err.response?.status;
-      const msg = err.response?.data?.message || (isNetworkOrTimeout ? 'Backend server is waking up. Please try again in 10-15 seconds.' : 'Invalid email or password.');
+      const msg = err.response?.data?.message || (isNetworkOrTimeout ? 'Unable to connect to backend. Please ensure the local server is running on port 3000.' : 'Invalid email or password.');
 
       if (status === 404 || msg.toLowerCase().includes('register yourself first') || msg.toLowerCase().includes('no account found')) {
         setIsNotRegistered(true);
@@ -580,7 +587,7 @@ export function SignInCard2() {
             onComplete={() => {
               setIsPreloading(false);
             }}
-            minDuration={2000}
+            minDuration={350}
           />
         )}
       </AnimatePresence>
@@ -609,6 +616,7 @@ export function SignInCard2() {
         <motion.div
           className="relative"
           style={{ rotateX, rotateY }}
+          onMouseEnter={handleMouseEnter}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           whileHover={{ z: 8 }}

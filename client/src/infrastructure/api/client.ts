@@ -8,9 +8,20 @@ export const clearApiCache = () => {
   apiCache.clear();
 };
 
+const resolveApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // On localhost, 127.0.0.1, or local IP, always use local /api directly
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.startsWith('192.168.') || host.startsWith('10.')) {
+      return '/api';
+    }
+  }
+  return import.meta.env.VITE_API_URL || '/api';
+};
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 10000,
+  baseURL: resolveApiBaseUrl(),
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

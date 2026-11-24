@@ -244,7 +244,7 @@ export const RegisterForm = () => {
       if (status === 409) {
         msg = 'An account with this email already exists. Please log in or reset your password.';
       } else if (isNetworkOrTimeout) {
-        msg = 'Connection timeout: Backend server is waking up. Please click Register again in 10-15 seconds.';
+        msg = 'Connection notice: Please ensure the backend server is active and try again.';
       } else if (!msg) {
         msg = 'Registration failed. Please check your details and try again.';
       }

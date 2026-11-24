@@ -63,7 +63,7 @@ const PORTAL_STAGES: PortalStage[] = [
 
 export function ClearFlowPreloader({
   onComplete,
-  minDuration = 2000,
+  minDuration = 350,
   fullScreen = true,
 }: ClearFlowPreloaderProps) {
   // Capture precise mount timestamp immediately when component function renders
