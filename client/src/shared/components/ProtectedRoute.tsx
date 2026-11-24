@@ -21,7 +21,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   if (wasLoadingOnMount.current && (!preloaderDone || isLoading)) {
     return (
       <ClearFlowPreloader
-        minDuration={350}
+        minDuration={2000}
         onComplete={() => setPreloaderDone(true)}
       />
     );

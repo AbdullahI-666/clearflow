@@ -587,7 +587,7 @@ export function SignInCard2() {
             onComplete={() => {
               setIsPreloading(false);
             }}
-            minDuration={350}
+            minDuration={2000}
           />
         )}
       </AnimatePresence>
