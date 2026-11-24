@@ -4,9 +4,12 @@ import { env } from './env.js';
 
 const { Pool } = pg;
 
-const supabaseUrl = env.SUPABASE_URL || '';
-const supabasePublishableKey = env.SUPABASE_PUBLISHABLE_KEY || '';
-const supabaseSecretKey = env.SUPABASE_SECRET_KEY || '';
+const defaultUrl = 'https://placeholder.supabase.co';
+const defaultKey = 'placeholder-supabase-key';
+
+const supabaseUrl = env.SUPABASE_URL && env.SUPABASE_URL.trim() !== '' ? env.SUPABASE_URL : defaultUrl;
+const supabasePublishableKey = env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_PUBLISHABLE_KEY.trim() !== '' ? env.SUPABASE_PUBLISHABLE_KEY : defaultKey;
+const supabaseSecretKey = env.SUPABASE_SECRET_KEY && env.SUPABASE_SECRET_KEY.trim() !== '' ? env.SUPABASE_SECRET_KEY : defaultKey;
 
 /**
  * Standard Supabase Client (Public / Publishable Scope)
@@ -64,44 +67,48 @@ export const testPgConnectivity = async (): Promise<{
     projectRef = urlObj.hostname.split('.')[0] || projectRef;
   } catch (_) {}
 
-  // 1. Probe PostgreSQL TCP pooler
-  try {
-    const client = await pgPool.connect();
-    await client.query('SELECT 1 as probe;');
-    client.release();
-    return {
-      connected: true,
-      mode: env.SUPABASE_DB_POOLER_URL ? 'Pooler' : 'Direct',
-      host: 'supabase.pooler',
-      latencyMs: Date.now() - t0,
-      projectRef,
-    };
-  } catch (_) {}
-
-  // 2. Probe Supabase HTTPS REST Gateway
-  try {
-    const resp = await fetch(`${supabaseUrl}/rest/v1/`, {
-      method: 'GET',
-      headers: {
-        apikey: supabaseSecretKey,
-        Authorization: `Bearer ${supabaseSecretKey}`,
-      },
-    });
-    if (resp.status < 500) {
+  // 1. Probe PostgreSQL TCP pooler (if connection string is configured)
+  if (activeConnectionString && activeConnectionString.trim() !== '') {
+    try {
+      const client = await pgPool.connect();
+      await client.query('SELECT 1 as probe;');
+      client.release();
       return {
         connected: true,
-        mode: 'HTTPS_REST',
-        host: new URL(supabaseUrl).hostname,
+        mode: env.SUPABASE_DB_POOLER_URL ? 'Pooler' : 'Direct',
+        host: 'supabase.pooler',
         latencyMs: Date.now() - t0,
         projectRef,
       };
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
+
+  // 2. Probe Supabase HTTPS REST Gateway (if live Supabase URL is configured)
+  if (supabaseUrl && !supabaseUrl.includes('placeholder.supabase.co')) {
+    try {
+      const resp = await fetch(`${supabaseUrl}/rest/v1/`, {
+        method: 'GET',
+        headers: {
+          apikey: supabaseSecretKey,
+          Authorization: `Bearer ${supabaseSecretKey}`,
+        },
+      });
+      if (resp.status < 500) {
+        return {
+          connected: true,
+          mode: 'HTTPS_REST',
+          host: new URL(supabaseUrl).hostname,
+          latencyMs: Date.now() - t0,
+          projectRef,
+        };
+      }
+    } catch (_) {}
+  }
 
   return {
-    connected: true,
+    connected: false,
     mode: 'HTTPS_REST',
-    host: new URL(supabaseUrl).hostname,
+    host: 'offline',
     latencyMs: Date.now() - t0,
     projectRef,
   };

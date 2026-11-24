@@ -10,9 +10,10 @@ import { connectDB } from './config/db.js';
 const server = http.createServer(app);
 initSocket(server);
 
-const port = env.PORT || 3000;
+const port = Number(process.env.PORT || env.PORT || 3000);
+const host = '0.0.0.0';
 
-server.listen(port, async () => {
+server.listen(port, host, async () => {
   console.log('\n======================================================');
   console.log('       🌟 CLEARFLOW UNIFIED SYSTEM IS READY 🌟        ');
   console.log('======================================================');

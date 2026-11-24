@@ -6,16 +6,19 @@ const envSource: Record<string, string | undefined> =
     ? (import.meta.env as unknown as Record<string, string | undefined>) 
     : {};
 
+const defaultUrl = 'https://placeholder.supabase.co';
+const defaultKey = 'placeholder-supabase-key';
+
 const supabaseUrl =
   envSource.VITE_SUPABASE_URL ||
   envSource.NEXT_PUBLIC_SUPABASE_URL ||
-  '';
+  defaultUrl;
 
 const supabaseAnonKey =
   envSource.VITE_SUPABASE_PUBLISHABLE_KEY ||
   envSource.VITE_SUPABASE_ANON_KEY ||
   envSource.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  '';
+  defaultKey;
 
 /**
  * Universal Supabase Browser Client
