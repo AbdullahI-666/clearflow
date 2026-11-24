@@ -7,9 +7,6 @@ const run = async () => {
     await connectDB();
     await seedCategories();
     console.log('[Seed Runner] Seeding sequence complete.');
-    try {
-      await pgPool.end();
-    } catch (_) {}
     process.exit(0);
   } catch (err: any) {
     console.log(`[Seed Notice] Cloud database notice: ${err.message}. System initialized in resilient High-Availability mode.`);
