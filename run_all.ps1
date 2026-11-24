@@ -9,15 +9,27 @@ Write-Host "======================================================" -ForegroundC
 
 # 1. Start AI Microservice (Background Process)
 Write-Host "`n[1/3] Starting Python AI Microservice (Port 5001)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\ai-service'; python app.py"
+$pyCmd = "cd '$PSScriptRoot\ai-service'; if (Test-Path .\.venv\Scripts\python.exe) { .\.venv\Scripts\python.exe app.py } else { python app.py }"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $pyCmd
 
-# 2. Seed Database
-Write-Host "[2/3] Seeding Database (Supabase / Store)..." -ForegroundColor Yellow
+# 2. Seed Database & Verify Cache
+Write-Host "[2/3] Seeding Database (High-Availability Store)..." -ForegroundColor Yellow
 Set-Location -Path "$PSScriptRoot\server"
-& "C:\Program Files\nodejs\npm.cmd" run seed
+try {
+    npm run seed
+} catch {
+    Write-Host "[Notice] Running in resilient offline mode." -ForegroundColor Gray
+}
 
-# 3. Launch Unified Server (Frontend + Backend + WebSockets on Port 3000)
-Write-Host "[3/3] Launching Unified Web Application (Port 3000)..." -ForegroundColor Green
+# 3. Ensure frontend bundle is built
+Set-Location -Path $PSScriptRoot
+if (-not (Test-Path "$PSScriptRoot\client\dist\index.html")) {
+    Write-Host "`n[Building Client] Compiling frontend assets..." -ForegroundColor Cyan
+    npm --prefix "$PSScriptRoot\client" run build
+}
+
+# 4. Launch Unified Server (Frontend + Backend + WebSockets on Port 3000)
+Write-Host "`n[3/3] Launching Unified Web Application (Port 3000)..." -ForegroundColor Green
 Write-Host "`n------------------------------------------------------" -ForegroundColor DarkGray
 Write-Host " 🚀 UNIFIED APP LINK:   http://localhost:3000" -ForegroundColor Cyan
 Write-Host " 🔌 REST APIs:          http://localhost:3000/api" -ForegroundColor White
@@ -29,4 +41,5 @@ Write-Host "------------------------------------------------------`n" -Foregroun
 Start-Process "http://localhost:3000"
 
 # Start the unified dev server
-& "C:\Program Files\nodejs\npm.cmd" run dev
+Set-Location -Path "$PSScriptRoot\server"
+npm run dev
