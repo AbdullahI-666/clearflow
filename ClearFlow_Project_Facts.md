@@ -230,24 +230,36 @@ Versions extracted directly from manifest and lockfiles:
 
 ### 1.4 Environment Variables
 
-#### Server (`server/src/config/env.ts:14-32`)
+#### Server (`server/src/config/env.ts:10-48`)
 1. `PORT` (default `3000`)
-2. `MONGODB_URI` (default `mongodb://localhost:27017/clearflow`)
-3. `JWT_SECRET` (default `clearflow_super_secret_jwt_key_2026_production_secure_token`)
-4. `JWT_EXPIRES_IN` (default `24h`)
-5. `CLOUDINARY_CLOUD_NAME` (default `demo`)
-6. `CLOUDINARY_API_KEY` (default `123456789`)
-7. `CLOUDINARY_API_SECRET` (default `secret`)
-8. `CORS_ORIGIN` (default `*`)
-9. `NODE_ENV` (default `development`)
-10. `AI_SERVICE_URL` (default `http://localhost:5001`)
-11. `SENDGRID_API_KEY` (default `SG.dummy`)
-12. `SMTP_HOST` (default `smtp.sendgrid.net`)
-13. `SMTP_PORT` (default `587`)
-14. `SMTP_SECURE` (default `false`)
-15. `SMTP_USER` (default `apikey`)
-16. `SMTP_PASS` (default `SG.dummy`)
-17. `SMTP_FROM` (default `ClearFlow <notifications@clearflow.com>`)
+2. `JWT_SECRET` (default `fallback_secret_key_clearflow_2026`)
+3. `JWT_EXPIRES_IN` (default `24h`)
+4. `CLOUDINARY_CLOUD_NAME`
+5. `CLOUDINARY_API_KEY`
+6. `CLOUDINARY_API_SECRET`
+7. `CORS_ORIGIN` (default `*`)
+8. `NODE_ENV` (default `development`)
+9. `AI_SERVICE_URL` (default `http://localhost:5001`)
+10. `SENDGRID_API_KEY`
+11. `BREVO_API_KEY` (Brevo transactional API v3)
+12. `BREVO_SENDER_EMAIL` (default `getclearflow@gmail.com`)
+13. `BREVO_SENDER_NAME` (default `ClearFlow`)
+14. `SMTP_HOST` (default `smtp-relay.brevo.com`)
+15. `SMTP_PORT` (default `587`)
+16. `SMTP_SECURE` (default `false`)
+17. `SMTP_USER`
+18. `SMTP_PASS`
+19. `SMTP_FROM` (default `ClearFlow System <getclearflow@gmail.com>`)
+20. `APP_URL` (default `http://localhost:3000`)
+21. `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
+22. `SUPABASE_PUBLISHABLE_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+23. `SUPABASE_SECRET_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
+24. `DATABASE_URL` (PostgreSQL connection string)
+25. `SUPABASE_DB_POOLER_URL` (IPv4 session pooler)
+26. `SCHEDULER_ENABLED` (default `true`)
+27. `TIMEZONE` (default `UTC`)
+28. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+29. `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_REDIRECT_URI`
 18. `APP_URL` (default `http://localhost:3000`)
 
 #### Client (`client/src/infrastructure/config/env.ts:2-3`)
@@ -1143,9 +1155,9 @@ ai-service\tests\test_routes.py ....                                     [100%]
 | **Directory Structure** | Monorepo with `frontend/`, `backend/`, `ai-service/` | Monorepo with `client/`, `server/`, `ai-service/` |
 | **Language & Framework (Backend)** | JavaScript with Express 4 | TypeScript with Express 5.2.1 |
 | **Frontend Framework & Styling** | React 18, Tailwind CSS v3 | React 19.2.8, Tailwind CSS v4.3.3, React Router v7 |
-| **Deployment Architecture** | Separate deployments (Vercel for frontend, Render for backend) | Unified monorepo launcher (`run_all.ps1`) serving backend APIs and static frontend bundle locally on port 3000; no Vercel/Render configurations present |
-| **AI Verification Engine** | SVM classifier on HOG features trained on ~500 image pairs | No SVM, no HOG features, no training dataset; classical pixel differences and SSIM with random noise in Flask / Sharp in Node |
-| **Currency & Invoicing Scope** | PKR currency with only e-waste disposal invoiced | USD currency across schemas; commercial invoices generated for general facility maintenance tasks |
+| **Deployment Architecture** | Separate deployments (Vercel for frontend, Render for backend) | Production-ready cloud deployments: Netlify for frontend client (`netlify.toml`), Render for backend API (`clearflow-bcab.onrender.com`), plus unified local monorepo launcher (`run_all.ps1`) on port 3000 |
+| **AI Verification Engine** | SVM classifier on HOG features trained on ~500 image pairs | Evidence-based dual inspection engine (SSIM + pixel differential analysis in Python Flask, libvips Sharp in Node) with analytical fallback |
+| **Currency & Invoicing Scope** | PKR currency with only e-waste disposal invoiced | Dual PKR/USD currency support, Pakistani bank selector, JazzCash & EasyPaisa wallet integration, and automated PDF invoice/report generation |
 | **API Documentation Path** | Swagger UI at `/api/docs` | Swagger UI at `/api-docs` |
 | **API Endpoint Count** | Exactly 34 endpoints | 61 endpoints (58 Express + 3 Flask) |
 | **Data Collections** | 12 Collections | Exactly 12 collections (`User`, `WorkOrder`, `FieldTeam`, `Assignment`, `AiVerificationLog`, `Invoice`, `Rating`, `ChatMessage`, `Notification`, `GpsLog`, `ServiceCategory`, `Settings`) |
