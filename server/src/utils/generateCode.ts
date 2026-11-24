@@ -1,32 +1,20 @@
-import mongoose from 'mongoose';
+import { dbQuery } from '../config/db.js';
 
-const counterSchema = new mongoose.Schema({
-  _id: { type: String, required: true },
-  seq: { type: Number, default: 0 }
-});
-
-const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
-
-let memoryWoCounter = 5;
-let memoryInvCounter = 1;
+let memoryWoCounter = 10;
+let memoryInvCounter = 10;
 
 export const generateWorkOrderCode = async (): Promise<string> => {
   const year = new Date().getFullYear();
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const counter = await Counter.findByIdAndUpdate(
-        { _id: `workOrder_${year}` },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      if (counter && counter.seq) {
-        const seqStr = String(counter.seq).padStart(4, '0');
-        return `WO-${year}-${seqStr}`;
-      }
-    } catch (err) {
-      // Fallback to in-memory counter
-    }
+  const rows = await dbQuery(
+    `SELECT count(*) as cnt FROM work_orders WHERE work_order_code LIKE $1`,
+    [`WO-${year}-%`]
+  );
+  if (rows && rows.length > 0) {
+    const count = Math.max(parseInt(rows[0].cnt, 10), 10) + (memoryWoCounter - 10);
+    memoryWoCounter++;
+    const seqStr = String(count + 1).padStart(4, '0');
+    return `WO-${year}-${seqStr}`;
   }
 
   memoryWoCounter++;
@@ -37,20 +25,15 @@ export const generateWorkOrderCode = async (): Promise<string> => {
 export const generateInvoiceCode = async (): Promise<string> => {
   const year = new Date().getFullYear();
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const counter = await Counter.findByIdAndUpdate(
-        { _id: `invoice_${year}` },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      if (counter && counter.seq) {
-        const seqStr = String(counter.seq).padStart(4, '0');
-        return `INV-${year}-${seqStr}`;
-      }
-    } catch (err) {
-      // Fallback
-    }
+  const rows = await dbQuery(
+    `SELECT count(*) as cnt FROM invoices WHERE invoice_code LIKE $1`,
+    [`INV-${year}-%`]
+  );
+  if (rows && rows.length > 0) {
+    const count = parseInt(rows[0].cnt, 10) + memoryInvCounter;
+    memoryInvCounter++;
+    const seqStr = String(count).padStart(4, '0');
+    return `INV-${year}-${seqStr}`;
   }
 
   memoryInvCounter++;

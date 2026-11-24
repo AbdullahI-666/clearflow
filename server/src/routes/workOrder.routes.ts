@@ -12,10 +12,19 @@ router.post('/', authorize(['Client', 'Admin']), createWorkOrderValidator, valid
 router.get('/', woController.getAll);
 router.get('/categories', woController.getCategories);
 router.get('/:id', woController.getById);
+router.put('/:id', authorize(['Admin']), woController.adminUpdate);
+router.delete('/:id', authorize(['Admin']), woController.adminDelete);
 
-router.patch('/:id/status', authorize(['FieldTeam', 'Admin']), updateStatusValidator, validate, woController.updateStatus);
+router.patch('/:id/status', authorize(['Client', 'FieldTeam', 'Admin']), updateStatusValidator, validate, woController.updateStatus);
+router.post('/:id/accept', authorize(['FieldTeam', 'Admin']), woController.accept);
+router.post('/:id/reject', authorize(['FieldTeam', 'Admin']), woController.reject);
+router.patch('/:id/progress', authorize(['FieldTeam', 'Admin']), woController.updateProgress);
 router.patch('/:id/assign', authorize(['Admin']), woController.assignOverride);
-router.post('/:id/images/before', authorize(['FieldTeam', 'Admin']), upload.single('image'), woController.uploadBeforeImage);
+router.post('/:id/images/before', authorize(['Client', 'Admin']), upload.single('image'), woController.uploadBeforeImage);
 router.post('/:id/images/after', authorize(['FieldTeam', 'Admin']), upload.single('image'), woController.uploadAfterImage);
+router.post('/:id/client-feedback', authorize(['Client', 'Admin']), woController.submitClientFeedback);
+router.post('/:id/submit-completion', authorize(['FieldTeam', 'Admin']), woController.submitWorkerCompletion);
+router.post('/:id/confirm-completion', authorize(['Client', 'Admin']), woController.clientConfirmCompletion);
+router.post('/:id/admin-inspection', authorize(['Admin']), woController.runAdminInspection);
 router.post('/:id/rating', authorize(['Client', 'Admin']), ratingValidator, validate, woController.submitRating);
 export default router;

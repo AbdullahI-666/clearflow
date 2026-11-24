@@ -7,4 +7,5 @@ router.use(authenticate);
 router.get('/', notifController.getAll);
 router.patch('/:id/read', notifController.markRead);
 router.patch('/read-all', notifController.markAllRead);
+router.delete('/:id', notifController.deleteOne);
 export default router;

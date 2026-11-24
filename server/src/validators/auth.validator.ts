@@ -4,13 +4,19 @@ export const registerValidator = [
   body('email').isEmail().withMessage('Please provide a valid email address'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('name').trim().notEmpty().withMessage('Full name is required'),
-  body('role').optional().isIn(['Client', 'FieldTeam']).withMessage('Role must be Client or FieldTeam'),
-  body('phone').trim().notEmpty().withMessage('Phone number is required'),
+  body('role').optional().isIn(['Client', 'FieldTeam', 'Worker', 'worker', 'fieldteam', 'field_team', 'field', 'crew', 'technician']).withMessage('Role must be Client or FieldTeam'),
+  body('phone').optional().trim(),
 ];
 
 export const loginValidator = [
-  body('email').isEmail().withMessage('Please provide a valid email address'),
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Email or username is required')
+    .isLength({ min: 2 })
+    .withMessage('Email or username must be at least 2 characters long'),
   body('password').notEmpty().withMessage('Password is required'),
+  body('selectedRole').optional().trim(),
 ];
 
 export const forgotPasswordValidator = [

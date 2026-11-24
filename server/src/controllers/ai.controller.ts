@@ -17,16 +17,16 @@ export const verifyImageQuality = async (req: Request, res: Response) => {
     threshold ? Number(threshold) : undefined
   );
 
-  res.json(ApiResponse.success(result, 'AI visual verification completed'));
+  res.json(ApiResponse.success(result, 'Visual verification completed'));
 };
 
 export const getVerificationReport = async (req: Request, res: Response) => {
   const { workOrderId } = req.params;
   const report = await aiService.getVerificationLog(workOrderId as string);
   if (!report) {
-    throw new ApiError(404, 'AI verification report not found for this work order');
+    throw new ApiError(404, 'Verification report not found for this work order');
   }
-  res.json(ApiResponse.success(report, 'AI verification audit log retrieved'));
+  res.json(ApiResponse.success(report, 'Verification audit log retrieved'));
 };
 
 export const getWorkloadForecast = async (_req: Request, res: Response) => {
@@ -37,7 +37,7 @@ export const getWorkloadForecast = async (_req: Request, res: Response) => {
 export const getDispatchRankings = async (req: Request, res: Response) => {
   const { id } = req.params;
   const rankings = await aiService.calculateDispatchRankings(id as string);
-  res.json(ApiResponse.success(rankings, 'Smart dispatch candidate rankings computed'));
+  res.json(ApiResponse.success(rankings, 'Smart worker candidate rankings computed'));
 };
 
 export const getAnomalies = async (_req: Request, res: Response) => {

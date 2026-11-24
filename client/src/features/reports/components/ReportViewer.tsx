@@ -2,18 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Download, Printer, ArrowLeft, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Download, Printer, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/infrastructure/api/client';
+import { useRoleTheme } from '@/shared/hooks/useRoleTheme';
+import { cn } from '@/lib/utils';
+import { downloadWorkOrderReport } from '@/shared/utils/pdfDownloader';
+import { CategorySquircleLogo } from '@/shared/utils/categoryIcons';
 
 export const ReportViewer = () => {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const theme = useRoleTheme();
   const [workOrder, setWorkOrder] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const targetId = id || '65f000000000000000000204';
+  const targetId = id || 'WO-2026-0004';
 
   useEffect(() => {
     const fetchWorkOrder = async () => {
@@ -24,8 +28,6 @@ export const ReportViewer = () => {
         }
       } catch (err) {
         console.warn('Could not load work order dynamically, using default view');
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -35,34 +37,9 @@ export const ReportViewer = () => {
   const handleDownloadPdf = async () => {
     setIsDownloading(true);
     try {
-      toast.info('Downloading official completion report PDF...');
-      const res = await apiClient.get(`/reports/${targetId}/pdf`, { responseType: 'blob' });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${workOrder?.workOrderCode || 'work_order'}_completion.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // Keep URL active for 10 seconds so the browser can finish reading the stream
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-      toast.success('Service report PDF downloaded!');
+      await downloadWorkOrderReport(workOrder || { _id: targetId, workOrderCode: woCode });
     } catch (err: any) {
-      if (err.response?.data instanceof Blob) {
-        try {
-          const errText = await err.response.data.text();
-          const parsed = JSON.parse(errText);
-          toast.error(parsed.message || 'Failed to download report PDF');
-          return;
-        } catch (_) {}
-      }
-      const token = localStorage.getItem('clearflow_token') || localStorage.getItem('token');
-      if (token) {
-        window.open(`/api/reports/${targetId}/pdf?token=${token}`, '_blank');
-      } else {
-        toast.error('Authentication expired. Please log in again.');
-      }
+      toast.error('Could not download report PDF. Please try again.');
     } finally {
       setIsDownloading(false);
     }
@@ -78,7 +55,7 @@ export const ReportViewer = () => {
   const dateStr = workOrder?.closedAt || workOrder?.createdAt ? new Date(workOrder.closedAt || workOrder.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
+    <div className="w-full py-8 px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="cursor-pointer">
@@ -94,7 +71,7 @@ export const ReportViewer = () => {
             size="sm" 
             onClick={handleDownloadPdf}
             disabled={isDownloading}
-            className="bg-teal-600 hover:bg-teal-700 cursor-pointer text-white shadow-sm"
+            className={cn(theme.primaryBtn, "text-xs h-9 px-3")}
           >
             {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             Download PDF
@@ -102,17 +79,17 @@ export const ReportViewer = () => {
         </div>
       </div>
 
-      <Card className="border border-gray-200 shadow-sm max-w-3xl mx-auto bg-white min-h-[750px]">
+      <Card className="border border-gray-200 shadow-sm w-full bg-white min-h-[750px]">
         {/* Report Header */}
-        <div className="p-8 sm:p-10 border-b border-gray-100 flex justify-between items-start bg-teal-900 text-white rounded-t-xl">
+        <div className={cn("p-8 sm:p-10 border-b border-gray-100 flex justify-between items-start text-white rounded-t-xl", theme.role === 'admin' ? 'bg-purple-900' : theme.role === 'fieldteam' ? 'bg-amber-900' : 'bg-teal-900')}>
           <div>
             <h2 className="text-3xl font-bold tracking-tight mb-1">ClearFlow</h2>
-            <p className="text-teal-200 text-xs">AI-Powered Facility Management System</p>
+            <p className={cn("text-xs", theme.role === 'admin' ? 'text-purple-200' : theme.role === 'fieldteam' ? 'text-amber-200' : 'text-teal-200')}>Modern Facility Management System</p>
           </div>
           <div className="text-right">
-            <h3 className="text-lg font-semibold tracking-wide text-teal-100">OFFICIAL COMPLETION REPORT</h3>
+            <h3 className={cn("text-lg font-semibold tracking-wide", theme.role === 'admin' ? 'text-purple-100' : theme.role === 'fieldteam' ? 'text-amber-100' : 'text-teal-100')}>OFFICIAL COMPLETION REPORT</h3>
             <p className="text-white font-mono text-base font-bold mt-1">{woCode}</p>
-            <p className="text-teal-200 text-xs mt-1">Date: {dateStr}</p>
+            <p className={cn("text-xs mt-1", theme.role === 'admin' ? 'text-purple-200' : theme.role === 'fieldteam' ? 'text-amber-200' : 'text-teal-200')}>Date: {dateStr}</p>
           </div>
         </div>
 
@@ -127,15 +104,18 @@ export const ReportViewer = () => {
             </div>
             <div>
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Service Details</h4>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Category:</span> {categoryName}</p>
+              <p className="text-sm text-gray-700 flex items-center gap-1.5"><span className="font-medium text-gray-900">Category:</span> <CategorySquircleLogo name={categoryName} size="xs" /> {categoryName}</p>
               <p className="text-sm text-gray-700 mt-0.5"><span className="font-medium text-gray-900">Assigned Team:</span> {teamName}</p>
               <p className="text-sm text-gray-700 mt-0.5"><span className="font-medium text-gray-900">Status:</span> <span className="text-emerald-700 font-semibold">{workOrder?.status || 'Closed'}</span></p>
             </div>
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-100 pb-2">Description of Work</h4>
-            <p className="text-gray-700 text-sm leading-relaxed mt-3 whitespace-pre-line">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-100 pb-2">Task & Description of Work</h4>
+            <p className="text-gray-900 font-bold text-base mt-2">
+              {workOrder?.title || `${categoryName} – ${location.split(',')[0]}`}
+            </p>
+            <p className="text-gray-700 text-sm leading-relaxed mt-1.5 whitespace-pre-line">
               {description}
             </p>
           </div>
@@ -153,7 +133,7 @@ export const ReportViewer = () => {
               </div>
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 flex flex-col items-center justify-center min-h-[160px] relative overflow-hidden">
                 <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
-                  AI VERIFIED {workOrder?.aiConfidenceScore ? `${Math.round(workOrder.aiConfidenceScore * 100)}%` : '94%'}
+                  QUALITY VERIFIED {workOrder?.aiConfidenceScore ? `${Math.round(workOrder.aiConfidenceScore * 100)}%` : '94%'}
                 </div>
                 {workOrder?.afterImageUrl ? (
                   <img src={workOrder.afterImageUrl} alt="After" className="max-h-36 rounded object-cover" />

@@ -8,9 +8,24 @@ import { registerValidator, loginValidator, forgotPasswordValidator, resetPasswo
 const router = Router();
 router.post('/register', authLimiter, registerValidator, validate, authController.register);
 router.post('/login', authLimiter, loginValidator, validate, authController.login);
+router.post('/oauth', authLimiter, authController.oauthLoginOrRegister);
+router.get('/oauth/google/url', authController.getGoogleOAuthUrl);
+router.post('/oauth/google/callback', authLimiter, authController.handleGoogleOAuthCallback);
+router.get('/oauth/apple/url', authController.getAppleOAuthUrl);
+router.post('/oauth/apple/callback', authLimiter, authController.handleAppleOAuthCallback);
+router.post('/oauth/save-credentials', authController.saveOAuthCredentials);
+router.post('/verify-login-code', authLimiter, authController.verifyLoginCode);
+router.post('/resend-login-code', authLimiter, authController.resendLoginCode);
 router.get('/me', authenticate, authController.getMe);
 router.get('/verify-email/:token', authController.verifyEmail);
+router.post('/verify-code', authLimiter, authController.verifyCode);
 router.post('/forgot-password', authLimiter, forgotPasswordValidator, validate, authController.forgotPassword);
+router.post('/verify-reset-code', authLimiter, authController.verifyResetCode);
+router.post('/reset-password', authLimiter, resetPasswordValidator, validate, authController.resetPassword);
 router.post('/reset-password/:token', authLimiter, resetPasswordValidator, validate, authController.resetPassword);
+router.post('/resend-verification', authLimiter, authController.resendVerification);
+router.post('/instant-activate', authLimiter, authController.instantActivate);
+router.get('/code-hint', authLimiter, authController.getCodeHint);
+router.get('/email-logs', authLimiter, authController.getEmailLogsController);
 
 export default router;

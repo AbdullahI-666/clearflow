@@ -1,30 +1,21 @@
-import mongoose from 'mongoose';
-import { env } from '../config/env.js';
+import { connectDB, pgPool } from '../config/db.js';
 import { seedCategories } from './categories.seed.js';
-import { seedDemo } from './demo.seed.js';
 
 const run = async () => {
   try {
-    console.log('[Seed Runner] Connecting to MongoDB at:', env.MONGODB_URI);
-    await mongoose.connect(env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('[Seed Runner] Connected successfully! Running seeds...');
+    console.log('[Seed Runner] Connecting to Supabase PostgreSQL...');
+    await connectDB();
     
     await seedCategories();
-    await seedDemo();
     
-    console.log('[Seed Runner] All seeds completed successfully!');
-    await mongoose.disconnect();
+    console.log('[Seed Runner] Supabase seeding completed successfully!');
+    await pgPool.end();
     process.exit(0);
   } catch (err: any) {
     console.error('\n======================================================');
-    console.error('⚠️  MONGODB CONNECTION NOTICE');
+    console.error('⚠️  SUPABASE CONNECTION ERROR');
     console.error('======================================================');
-    console.error('Could not connect to MongoDB at:', env.MONGODB_URI);
-    console.error('\nTo fix this:');
-    console.error('1. Open clearflow/server/.env file');
-    console.error('2. Paste your MongoDB Atlas URI into MONGODB_URI=...');
-    console.error('   (e.g., MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/clearflow)');
-    console.error('3. Or start your local MongoDB service (mongod)');
+    console.error('Error during seeding:', err.message);
     console.error('======================================================\n');
     process.exit(1);
   }

@@ -1,8 +1,5 @@
-import mongoose from 'mongoose';
-import { WorkOrder } from '../models/workOrder.model.js';
-import { FieldTeam } from '../models/fieldTeam.model.js';
+import { dbQuery } from '../config/db.js';
 import { generateWorkloadForecast } from './ai.service.js';
-import { env } from '../config/env.js';
 
 export const getDashboard = async (from?: string, to?: string, categoryId?: string) => {
   let totalRequests = 42;
@@ -16,35 +13,54 @@ export const getDashboard = async (from?: string, to?: string, categoryId?: stri
     { name: 'General Waste Collection', count: 4 },
   ];
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const matchStage: any = {};
-      if (from || to) {
-        matchStage.createdAt = {};
-        if (from) matchStage.createdAt.$gte = new Date(from);
-        if (to) matchStage.createdAt.$lte = new Date(to);
-      }
-      if (categoryId) {
-        matchStage.categoryId = new mongoose.Types.ObjectId(categoryId);
-      }
+  try {
+    let whereClauses: string[] = [];
+    let params: any[] = [];
 
-      const tReq = await WorkOrder.countDocuments(matchStage);
-      if (tReq > 0) {
-        totalRequests = tReq;
-        closedCount = await WorkOrder.countDocuments({ ...matchStage, status: 'Closed' });
-        openCount = await WorkOrder.countDocuments({ ...matchStage, status: 'Open' });
-        inProgressCount = await WorkOrder.countDocuments({ ...matchStage, status: 'InProgress' });
+    if (from) {
+      params.push(new Date(from));
+      whereClauses.push(`created_at >= $${params.length}`);
+    }
+    if (to) {
+      params.push(new Date(to));
+      whereClauses.push(`created_at <= $${params.length}`);
+    }
+    if (categoryId) {
+      params.push(categoryId);
+      whereClauses.push(`category_id = $${params.length}`);
+    }
 
-        categoryBreakdown = await WorkOrder.aggregate([
-          { $match: matchStage },
-          { $group: { _id: '$categoryId', count: { $sum: 1 } } },
-          { $lookup: { from: 'servicecategories', localField: '_id', foreignField: '_id', as: 'category' } },
-          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
-          { $project: { name: { $ifNull: ['$category.name', 'General Operations'] }, count: 1 } },
-        ]);
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const counts = await dbQuery(
+      `SELECT
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE status = 'Closed') as closed,
+         COUNT(*) FILTER (WHERE status = 'Open') as open,
+         COUNT(*) FILTER (WHERE status = 'InProgress') as in_progress
+       FROM work_orders ${whereStr}`,
+      params
+    );
+
+    if (counts && counts.length > 0 && parseInt(counts[0].total, 10) > 0) {
+      totalRequests = parseInt(counts[0].total, 10);
+      closedCount = parseInt(counts[0].closed, 10);
+      openCount = parseInt(counts[0].open, 10);
+      inProgressCount = parseInt(counts[0].in_progress, 10);
+
+      const catMix = await dbQuery(
+        `SELECT COALESCE(sc.name, 'General Operations') as name, COUNT(wo.id) as count
+         FROM work_orders wo
+         LEFT JOIN service_categories sc ON sc.id = wo.category_id
+         ${whereStr}
+         GROUP BY sc.name`,
+        params
+      );
+
+      if (catMix && catMix.length > 0) {
+        categoryBreakdown = catMix.map(c => ({ name: c.name, count: parseInt(c.count, 10) }));
       }
-    } catch (err) {}
-  }
+    }
+  } catch (err) {}
 
   const completionRate = totalRequests > 0 ? Math.round((closedCount / totalRequests) * 1000) / 10 : 83.3;
 
@@ -73,20 +89,22 @@ export const getDashboard = async (from?: string, to?: string, categoryId?: stri
 };
 
 export const getTeamPerformance = async (_from?: string, _to?: string) => {
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const teams = await FieldTeam.find({ isActive: true }).populate('categoryId');
-      if (teams && teams.length > 0) {
-        return teams.map((t) => ({
-          teamId: t._id,
-          name: t.name,
-          category: (t.categoryId as any)?.name || 'General',
-          rating: t.averageRating || 4.8,
-          jobsCompleted: t.totalJobsCompleted || 0,
-          activeOrders: t.activeOrderCount || 0,
-        }));
-      }
-    } catch (err) {}
+  const teams = await dbQuery(
+    `SELECT ft.*, sc.name as category_name
+     FROM field_teams ft
+     LEFT JOIN service_categories sc ON sc.id = ft.category_id
+     WHERE ft.is_active = true`
+  );
+
+  if (teams && teams.length > 0) {
+    return teams.map((t) => ({
+      teamId: t.id,
+      name: t.name,
+      category: t.category_name || 'General',
+      rating: parseFloat(t.average_rating) || 4.8,
+      jobsCompleted: t.total_jobs_completed || 0,
+      activeOrders: t.active_order_count || 0,
+    }));
   }
 
   return [

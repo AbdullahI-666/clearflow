@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Filter, Loader2, X } from 'lucide-react';
+import { Plus, Search, Loader2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TeamCard } from './TeamCard';
@@ -10,7 +10,7 @@ import type { FieldTeam } from '@/entities/team/types';
 import type { ServiceCategory } from '@/entities/workOrder/types';
 import { toast } from 'sonner';
 
-const COLOR_PALETTE = ['bg-blue-500', 'bg-emerald-500', 'bg-teal-600', 'bg-green-600', 'bg-purple-500', 'bg-amber-500'];
+const COLOR_PALETTE = ['bg-blue-500', 'bg-emerald-500', 'bg-indigo-600', 'bg-violet-600', 'bg-purple-500', 'bg-amber-500'];
 
 export const TeamList = () => {
   const [teams, setTeams] = useState<FieldTeam[]>([]);
@@ -22,7 +22,7 @@ export const TeamList = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [selectedCatId, setSelectedCatId] = useState('');
-  const [zoneRadius, setZoneRadius] = useState(10);
+  const [zoneRadius, setZoneRadius] = useState<number | ''>(10);
   const [isCreating, setIsCreating] = useState(false);
 
   const fetchTeamsData = async () => {
@@ -90,34 +90,34 @@ export const TeamList = () => {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-6 w-full pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Field Teams</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Workers</h1>
           <p className="text-gray-500 mt-1">Manage personnel, operational zones, and workload capacities.</p>
         </div>
         
-        <Button onClick={() => setIsDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 shadow-md cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" /> Add New Team
+        <Button onClick={() => setIsDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/20 text-white cursor-pointer">
+          <Plus className="mr-2 h-4 w-4" /> Add New Worker
         </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input 
             placeholder="Search teams by name or category..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-white border-none shadow-sm focus-visible:ring-teal-500" 
+            className="text-center placeholder:text-center pl-9 pr-9 bg-white border-none shadow-sm focus-visible:ring-purple-500" 
           />
         </div>
       </div>
 
       {isLoading ? (
         <div className="py-20 text-center text-gray-400">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" />
-          <p className="text-sm">Loading field teams from database...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
+          <p className="text-sm">Loading workers from database...</p>
         </div>
       ) : filteredTeams.length === 0 ? (
         <div className="py-16 text-center text-gray-500 bg-white rounded-xl shadow-sm p-8">
@@ -137,10 +137,10 @@ export const TeamList = () => {
                 team={{
                   id: team._id,
                   name: team.name,
-                  lead: 'Lead Dispatcher',
+                  lead: 'Operations Lead',
                   status,
-                  rating: team.averageRating || 4.8,
-                  zone: `Zone ${team.zoneLat?.toFixed(2)}, ${team.zoneLng?.toFixed(2)}`,
+                  rating: team.averageRating !== undefined ? Number(team.averageRating) : 0.0,
+                  zone: (team as any).zone || 'Zone Lahore Core',
                   activeOrders: team.activeOrderCount || 0,
                   categories: [catName],
                   initials,
@@ -157,7 +157,7 @@ export const TeamList = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg text-gray-900">Add New Field Team</h3>
+              <h3 className="font-bold text-lg text-gray-900">Add New Worker</h3>
               <button onClick={() => setIsDialogOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -180,7 +180,7 @@ export const TeamList = () => {
                 <select 
                   value={selectedCatId} 
                   onChange={(e) => setSelectedCatId(e.target.value)}
-                  className="w-full mt-1 border border-gray-200 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full mt-1 border border-gray-200 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   {categories.map(c => (
                     <option key={c._id} value={c._id}>{c.name}</option>
@@ -195,7 +195,7 @@ export const TeamList = () => {
                   min={1} 
                   max={50}
                   value={zoneRadius}
-                  onChange={(e) => setZoneRadius(Number(e.target.value))}
+                  onChange={(e) => setZoneRadius(e.target.value === '' ? '' : Number(e.target.value))}
                   className="mt-1"
                 />
               </div>
@@ -204,7 +204,7 @@ export const TeamList = () => {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-teal-600 hover:bg-teal-700" disabled={isCreating}>
+                <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20 cursor-pointer" disabled={isCreating}>
                   {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Create Team
                 </Button>

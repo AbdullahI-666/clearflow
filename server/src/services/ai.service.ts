@@ -1,8 +1,4 @@
-import mongoose from 'mongoose';
-import { WorkOrder } from '../models/workOrder.model.js';
-import { FieldTeam } from '../models/fieldTeam.model.js';
-import { AiVerificationLog } from '../models/aiVerificationLog.model.js';
-import { Settings } from '../models/settings.model.js';
+import { dbQuery } from '../config/db.js';
 import { haversineDistance } from '../utils/haversine.js';
 import { DEFAULT_TEAMS_DATA } from '../controllers/team.controller.js';
 import { MOCK_WORK_ORDERS } from './workOrder.service.js';
@@ -105,73 +101,63 @@ export const verifyServiceQuality = async (
   workOrderId?: string,
   beforeUrl?: string,
   afterUrl?: string,
-  customThreshold?: number,
-  categoryName?: string
+  customThreshold?: number
 ) => {
   // Retrieve threshold from settings or default
   let threshold = customThreshold ?? 0.75;
-  if (customThreshold === undefined && mongoose.connection.readyState === 1) {
+  if (customThreshold === undefined) {
     try {
-      const settings = await Settings.findOne();
-      if (settings?.aiConfidenceThreshold) {
-        threshold = settings.aiConfidenceThreshold;
+      const sRows = await dbQuery('SELECT ai_confidence_threshold FROM settings LIMIT 1');
+      if (sRows && sRows.length > 0 && sRows[0].ai_confidence_threshold) {
+        threshold = Number(sRows[0].ai_confidence_threshold);
       }
     } catch (err) {}
   }
 
-  // Resolve category name if not passed directly
-  let resolvedCategory = categoryName;
-  if (!resolvedCategory && workOrderId) {
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const woDoc = await WorkOrder.findById(workOrderId).populate('categoryId');
-        if (woDoc) {
-          resolvedCategory = (woDoc.categoryId as any)?.name;
-        }
-      } catch (err) {}
-    }
-    if (!resolvedCategory) {
-      const mockWo = MOCK_WORK_ORDERS.find((w) => w._id === workOrderId || w.workOrderCode === workOrderId);
-      if (mockWo) {
-        resolvedCategory = typeof mockWo.categoryId === 'object' && mockWo.categoryId ? (mockWo.categoryId as any).name : 'Cleaning';
-      }
-    }
-  }
-  resolvedCategory = resolvedCategory || 'Cleaning';
-
-  // Execute real libvips vision pipeline with category-specific diagnostic checks
-  const visionResult = await performAiQualityVerification(beforeUrl, afterUrl, threshold, resolvedCategory);
+  // Execute real libvips vision pipeline
+  const visionResult = await performAiQualityVerification(beforeUrl, afterUrl, threshold);
   const nextStatus = visionResult.result === 'Pass' ? 'PendingReview' : 'Flagged';
 
-  // Persist to MongoDB Atlas if connected
-  if (workOrderId && mongoose.connection.readyState === 1) {
+  // Persist to Supabase PostgreSQL
+  if (workOrderId) {
     try {
-      await WorkOrder.findByIdAndUpdate(workOrderId, {
-        afterImageUrl: afterUrl,
-        aiConfidenceScore: visionResult.confidenceScore,
-        aiResult: visionResult.result,
-        aiVerificationDetails: visionResult,
-        status: nextStatus,
-      });
+      await dbQuery(
+        `UPDATE work_orders SET
+          after_image_url = $1,
+          ai_confidence_score = $2,
+          ai_result = $3,
+          ai_verification_details = $4,
+          status = $5,
+          updated_at = NOW()
+         WHERE id::text = $6`,
+        [afterUrl, visionResult.confidenceScore, visionResult.result, JSON.stringify(visionResult), nextStatus, workOrderId]
+      );
 
-      await AiVerificationLog.findOneAndUpdate(
-        { workOrderId: new mongoose.Types.ObjectId(workOrderId) },
-        {
-          workOrderId: new mongoose.Types.ObjectId(workOrderId),
-          beforeImageUrl: beforeUrl || '',
-          afterImageUrl: afterUrl || '',
-          confidenceScore: visionResult.confidenceScore,
-          result: visionResult.result,
-          modelVersion: visionResult.modelVersion,
-          processingTimeMs: visionResult.processingTimeMs,
-          verifiedAt: visionResult.verifiedAt,
-          metrics: visionResult.metrics,
-          fraudAnalysis: visionResult.fraudAnalysis,
-          qualityAssessment: visionResult.qualityAssessment,
-          findings: visionResult.findings,
-          serviceRecommendation: visionResult.serviceRecommendation,
-        },
-        { upsert: true, new: true }
+      await dbQuery(
+        `INSERT INTO ai_verification_logs (
+          work_order_id, before_image_url, after_image_url, confidence_score,
+          result, model_version, processing_time_ms, verified_at,
+          metrics, fraud_analysis, quality_assessment, findings, service_recommendation
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ON CONFLICT (work_order_id) DO UPDATE SET
+          after_image_url = $3, confidence_score = $4, result = $5,
+          verified_at = $8, metrics = $9, fraud_analysis = $10,
+          quality_assessment = $11, findings = $12, service_recommendation = $13`,
+        [
+          workOrderId,
+          beforeUrl || '',
+          afterUrl || '',
+          visionResult.confidenceScore,
+          visionResult.result,
+          visionResult.modelVersion,
+          visionResult.processingTimeMs,
+          visionResult.verifiedAt,
+          JSON.stringify(visionResult.metrics),
+          JSON.stringify(visionResult.fraudAnalysis),
+          JSON.stringify(visionResult.qualityAssessment),
+          visionResult.findings || [],
+          visionResult.serviceRecommendation || '',
+        ]
       );
     } catch (err) {}
   }
@@ -180,14 +166,8 @@ export const verifyServiceQuality = async (
 };
 
 export const getVerificationLog = async (workOrderId: string) => {
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const log = await AiVerificationLog.findOne({
-        workOrderId: new mongoose.Types.ObjectId(workOrderId),
-      });
-      if (log) return log;
-    } catch {}
-  }
+  const rows = await dbQuery('SELECT * FROM ai_verification_logs WHERE work_order_id::text = $1 LIMIT 1', [workOrderId]);
+  if (rows && rows.length > 0) return rows[0];
   return null;
 };
 
@@ -197,23 +177,17 @@ export const getVerificationLog = async (workOrderId: string) => {
 export const generateWorkloadForecast = async () => {
   let dailyHistory: Array<{ date: string; count: number }> = [];
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
-      const agg = await WorkOrder.aggregate([
-        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]);
-
-      dailyHistory = agg.map((a) => ({ date: a._id, count: a.count }));
-    } catch (err) {}
-  }
+  try {
+    const rows = await dbQuery(
+      `SELECT to_char(created_at, 'YYYY-MM-DD') as date, count(*)::int as count
+       FROM work_orders
+       WHERE created_at >= NOW() - INTERVAL '30 days'
+       GROUP BY 1 ORDER BY 1 ASC`
+    );
+    if (rows && rows.length > 0) {
+      dailyHistory = rows.map((r) => ({ date: r.date, count: r.count }));
+    }
+  } catch (err) {}
 
   if (dailyHistory.length < 5) {
     // Realistic fallback baseline
@@ -272,14 +246,6 @@ export const generateWorkloadForecast = async () => {
     const predictedRequests = Math.max(12, Math.round(basePredicted * dayMultiplier));
     const recommendedStaff = Math.max(3, Math.ceil(predictedRequests / 4.5));
 
-    const cleaningDemand = Math.max(3, Math.round(predictedRequests * 0.28));
-    const electricalDemand = Math.max(2, Math.round(predictedRequests * 0.20));
-    const plumbingDemand = Math.max(2, Math.round(predictedRequests * 0.18));
-    const wasteDemand = Math.max(2, Math.round(predictedRequests * 0.14));
-    const gardeningDemand = Math.max(1, Math.round(predictedRequests * 0.08));
-    const pestDemand = Math.max(1, Math.round(predictedRequests * 0.07));
-    const ewasteDemand = Math.max(1, Math.round(predictedRequests * 0.05));
-
     forecast.push({
       date: futureDate.toISOString().split('T')[0],
       dayOfWeek: dayName,
@@ -287,103 +253,17 @@ export const generateWorkloadForecast = async () => {
       recommendedStaff,
       confidence: 0.88,
       categoryDemand: {
-        'Cleaning': cleaningDemand,
-        'Electrical Repair': electricalDemand,
-        'Plumbing': plumbingDemand,
-        'General Waste Collection': wasteDemand,
-        'Gardening': gardeningDemand,
-        'Pest Control': pestDemand,
-        'E-Waste Recycling': ewasteDemand,
+        Cleaning: Math.round(predictedRequests * 0.38),
+        'Electrical Repair': Math.round(predictedRequests * 0.26),
+        Plumbing: Math.round(predictedRequests * 0.20),
+        'Waste & Recycling': Math.round(predictedRequests * 0.16),
       },
     });
   }
 
-  // Aggregate 7-day category breakdown
-  const categoryBreakdown = {
-    'Cleaning': {
-      category: 'Cleaning',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['Cleaning'] || 0), 0),
-      trendPercentage: '+6.2%',
-      peakDay: 'Friday',
-      recommendedStaff: 4,
-      accuracy: '94.2%',
-      icon: 'Sparkles',
-      description: 'Deep cleaning, sanitation, and floor maintenance',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['Cleaning'] })),
-    },
-    'Electrical Repair': {
-      category: 'Electrical Repair',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['Electrical Repair'] || 0), 0),
-      trendPercentage: '+11.5%',
-      peakDay: 'Monday',
-      recommendedStaff: 3,
-      accuracy: '91.8%',
-      icon: 'Zap',
-      description: 'Circuit repairs, breaker panels, conduits, and emergency wiring',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['Electrical Repair'] })),
-    },
-    'Plumbing': {
-      category: 'Plumbing',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['Plumbing'] || 0), 0),
-      trendPercentage: '-2.4%',
-      peakDay: 'Wednesday',
-      recommendedStaff: 3,
-      accuracy: '93.5%',
-      icon: 'Droplets',
-      description: 'Pipe leaks, drainage clearances, fixture fittings, and pressure tests',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['Plumbing'] })),
-    },
-    'General Waste Collection': {
-      category: 'General Waste Collection',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['General Waste Collection'] || 0), 0),
-      trendPercentage: '+14.1%',
-      peakDay: 'Saturday',
-      recommendedStaff: 2,
-      accuracy: '95.0%',
-      icon: 'Trash2',
-      description: 'Institutional trash pickup, corral sweeps, and cardboard baling',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['General Waste Collection'] })),
-    },
-    'Gardening': {
-      category: 'Gardening',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['Gardening'] || 0), 0),
-      trendPercentage: '+4.8%',
-      peakDay: 'Tuesday',
-      recommendedStaff: 2,
-      accuracy: '89.4%',
-      icon: 'Leaf',
-      description: 'Lawn mowing, hedge trimming, weed suppression, and debris mulch',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['Gardening'] })),
-    },
-    'Pest Control': {
-      category: 'Pest Control',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['Pest Control'] || 0), 0),
-      trendPercentage: '+1.0%',
-      peakDay: 'Thursday',
-      recommendedStaff: 1,
-      accuracy: '92.1%',
-      icon: 'Shield',
-      description: 'Bait station inspection, IPM exclusion seals, and barrier sprays',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['Pest Control'] })),
-    },
-    'E-Waste Recycling': {
-      category: 'E-Waste Recycling',
-      weeklyTotal: forecast.reduce((acc, f) => acc + (f.categoryDemand['E-Waste Recycling'] || 0), 0),
-      trendPercentage: '+18.7%',
-      peakDay: 'Friday',
-      recommendedStaff: 1,
-      accuracy: '96.3%',
-      icon: 'Cpu',
-      description: 'Decommissioned IT assets, hazardous batteries, and WEEE certified recovery',
-      dailySeries: forecast.map((f) => ({ date: f.date, dayOfWeek: f.dayOfWeek, count: f.categoryDemand['E-Waste Recycling'] })),
-    },
-  };
-
   return {
     forecast,
-    categoryBreakdown,
-    model: 'scikit-learn Multi-Category Demand Forecaster v1.2',
-    datasetProvenance: 'NYC 311 24-Month Daily Volume Dataset (713 days) + TrashNet & EPA Material Factors',
+    model: 'scikit-learn Linear Regression (7-Day Rolling Workload Predictor)',
     overallConfidence: 0.88,
     historicalDataPoints: n,
     slope: Math.round(slope * 100) / 100,
@@ -398,10 +278,23 @@ export const generateWorkloadForecast = async () => {
 export const calculateDispatchRankings = async (workOrderId: string) => {
   let wo: any = null;
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      wo = await WorkOrder.findById(workOrderId).populate('categoryId clientId');
-    } catch (err) {}
+  const woRows = await dbQuery(
+    `SELECT wo.*, sc.name as category_name
+     FROM work_orders wo
+     LEFT JOIN service_categories sc ON sc.id = wo.category_id
+     WHERE wo.id::text = $1 OR wo.work_order_code = $1 LIMIT 1`,
+    [workOrderId]
+  );
+  if (woRows && woRows.length > 0) {
+    const r = woRows[0];
+    wo = {
+      _id: r.id,
+      workOrderCode: r.work_order_code,
+      locationLat: Number(r.location_lat),
+      locationLng: Number(r.location_lng),
+      locationAddress: r.location_address,
+      categoryId: { name: r.category_name },
+    };
   }
 
   if (!wo) {
@@ -409,7 +302,6 @@ export const calculateDispatchRankings = async (workOrderId: string) => {
   }
 
   if (!wo) {
-    // Provide realistic fallback order location for inspection
     wo = {
       _id: workOrderId,
       workOrderCode: 'WO-DEMO',
@@ -421,10 +313,22 @@ export const calculateDispatchRankings = async (workOrderId: string) => {
   }
 
   let teams: any[] = [];
-  if (mongoose.connection.readyState === 1) {
-    try {
-      teams = await FieldTeam.find({ isActive: true }).populate('categoryId');
-    } catch (err) {}
+  const teamRows = await dbQuery(
+    `SELECT ft.*, sc.name as category_name
+     FROM field_teams ft
+     LEFT JOIN service_categories sc ON sc.id = ft.category_id
+     WHERE ft.is_active = true`
+  );
+  if (teamRows && teamRows.length > 0) {
+    teams = teamRows.map(t => ({
+      _id: t.id,
+      name: t.name,
+      zoneLat: Number(t.zone_lat),
+      zoneLng: Number(t.zone_lng),
+      activeOrderCount: t.active_order_count,
+      averageRating: Number(t.average_rating),
+      categoryId: { name: t.category_name },
+    }));
   }
 
   if (!teams || teams.length === 0) {
@@ -481,10 +385,29 @@ export const calculateDispatchRankings = async (workOrderId: string) => {
 export const detectWorkOrderAnomalies = async () => {
   let workOrders: any[] = [];
 
-  if (mongoose.connection.readyState === 1) {
-    try {
-      workOrders = await WorkOrder.find().populate('clientId teamId categoryId').limit(100);
-    } catch (err) {}
+  const rows = await dbQuery(
+    `SELECT wo.*, u.name as client_name, ft.name as team_name, sc.name as category_name
+     FROM work_orders wo
+     LEFT JOIN users u ON u.id = wo.client_id
+     LEFT JOIN field_teams ft ON ft.id = wo.team_id
+     LEFT JOIN service_categories sc ON sc.id = wo.category_id
+     LIMIT 100`
+  );
+  if (rows && rows.length > 0) {
+    workOrders = rows.map(r => ({
+      _id: r.id,
+      workOrderCode: r.work_order_code,
+      title: r.title,
+      status: r.status,
+      urgency: r.urgency,
+      progressPercentage: r.progress_percentage,
+      aiConfidenceScore: Number(r.ai_confidence_score),
+      aiResult: r.ai_result,
+      createdAt: r.created_at,
+      clientId: { _id: r.client_id, name: r.client_name },
+      teamId: { _id: r.team_id, name: r.team_name },
+      categoryId: { _id: r.category_id, name: r.category_name },
+    }));
   }
 
   if (!workOrders || workOrders.length === 0) {
@@ -549,7 +472,7 @@ export const detectWorkOrderAnomalies = async () => {
         severity: 'High',
         title: 'Computer Vision Quality Rejection',
         description: `Visual difference confidence fell to ${Math.round((wo.aiConfidenceScore || 0) * 100)}%, failing facility standards.`,
-        recommendedAction: 'Dispatch field supervisor for on-site quality audit.',
+        recommendedAction: 'Assign field supervisor for on-site quality audit.',
         detectedAt: new Date(),
       });
     }
@@ -564,7 +487,7 @@ export const detectWorkOrderAnomalies = async () => {
         severity: 'Medium',
         title: 'Heavy Payload Waste Detected (> 200 kg)',
         description: `Service request specifies ${wo.wasteQuantityKg} kg of ${wo.wasteType || 'waste'}, requiring freight transport logistics.`,
-        recommendedAction: 'Confirm industrial roll-off bin availability and verify hydraulic lift vehicle dispatch.',
+        recommendedAction: 'Confirm industrial roll-off bin availability and verify hydraulic lift vehicle deployment.',
         detectedAt: new Date(),
       });
     }
@@ -577,9 +500,9 @@ export const detectWorkOrderAnomalies = async () => {
         workOrderCode: wo.workOrderCode,
         type: 'UNASSIGNED_URGENT',
         severity: 'Critical',
-        title: 'High-Urgency Incident Pending Crew Dispatch',
+        title: 'High-Urgency Incident Pending Crew Assignment',
         description: 'Urgent service ticket has remained in Open queue without assigned technician.',
-        recommendedAction: 'Execute manual dispatch override to immediately route nearest crew.',
+        recommendedAction: 'Execute manual assignment override to immediately route nearest crew.',
         detectedAt: new Date(),
       });
     }

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'Outfit', sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
@@ -31,7 +33,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.98 0.01 155);
+  --background: #ffffff;
   --foreground: oklch(0.2 0.02 260);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.02 260);
@@ -49,16 +51,101 @@
   --border: oklch(0.9 0.02 155);
   --input: oklch(0.9 0.02 155);
   --ring: oklch(0.55 0.15 168);
-  --sidebar: oklch(0.98 0.01 155);
+  --sidebar: #ffffff;
   --sidebar-foreground: oklch(0.4 0.02 260);
   --sidebar-accent: oklch(0.94 0.05 168);
   --sidebar-ring: oklch(0.55 0.15 168);
 }
 
+/* Admin Role Theme: Clean & Elegant Light Purple/Violet Palette */
+html[data-user-role="admin"],
+body[data-user-role="admin"],
+html[data-role="admin"],
+body[data-role="admin"],
+[data-role="admin"],
+.role-admin {
+  --background: #ffffff;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #9333ea;
+  --primary-foreground: #ffffff;
+  --secondary: #f3e8ff;
+  --secondary-foreground: #6b21a8;
+  --muted: #f5f0fb;
+  --muted-foreground: #71717a;
+  --accent: #f3e8ff;
+  --accent-foreground: #581c87;
+  --destructive: #ef4444;
+  --border: #e9d5ff;
+  --input: #e9d5ff;
+  --ring: #9333ea;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3f3f46;
+  --sidebar-accent: #f3e8ff;
+  --sidebar-ring: #9333ea;
+}
+
+/* Field Team Role Theme: Amber & Warm Orange Palette */
+html[data-user-role="fieldteam"],
+body[data-user-role="fieldteam"],
+html[data-role="fieldteam"],
+body[data-role="fieldteam"],
+[data-role="fieldteam"],
+[data-role="field_team"],
+.role-fieldteam {
+  --background: #ffffff;
+  --primary: oklch(0.65 0.18 55); /* Amber / Warm Orange */
+  --primary-foreground: oklch(0.99 0.005 55);
+  --secondary: oklch(0.95 0.05 60); /* Light Amber Tint */
+  --secondary-foreground: oklch(0.35 0.15 55); /* Deep Amber Text */
+  --accent: #FEF3C7; /* Warm Amber 100 */
+  --accent-foreground: #78350F; /* Deep Amber 900 */
+  --ring: oklch(0.65 0.18 55);
+  --sidebar: #ffffff;
+  --sidebar-accent: oklch(0.95 0.05 60);
+  --sidebar-ring: oklch(0.65 0.18 55);
+}
+
+/* Client Role Theme: Emerald & Fresh Green Palette */
+html[data-user-role="client"],
+body[data-user-role="client"],
+html[data-role="client"],
+body[data-role="client"],
+[data-role="client"],
+.role-client {
+  --background: #ffffff;
+  --primary: oklch(0.55 0.15 168); /* Fresh Teal/Emerald */
+  --primary-foreground: oklch(0.98 0.01 155);
+  --secondary: oklch(0.94 0.03 155);
+  --secondary-foreground: oklch(0.3 0.05 168);
+  --accent: #DCFCE7; /* Emerald 100 */
+  --accent-foreground: #064E3B; /* Deep Emerald 900 */
+  --ring: oklch(0.55 0.15 168);
+  --sidebar: #ffffff;
+  --sidebar-accent: oklch(0.94 0.05 168);
+  --sidebar-ring: oklch(0.55 0.15 168);
+}
+
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--background);
+  font-family: var(--font-sans);
+  background-color: #ffffff;
   color: var(--foreground);
+}
+
+/* Ensure clean numbers everywhere using the Outfit / Plus Jakarta Sans font without slashed zeros */
+.font-mono,
+[class*="font-mono"],
+code,
+kbd,
+samp {
+  font-family: var(--font-sans) !important;
+}
+
+*, *::before, *::after {
+  font-variant-numeric: normal;
 }
 
 @layer base {
@@ -66,3 +153,745 @@ body {
     border-color: var(--border);
   }
 }
+
+/* Quick 1s toast exit transitions */
+[data-sonner-toaster] [data-sonner-toast] {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+}
+
+/* ==========================================================================
+   Role-Themed Toast Popups (Admin: Purple, Field Team: Orange, Client: Green)
+   ========================================================================== */
+
+/* 1. FIELD TEAM THEME (Warm Amber / Orange) */
+[data-user-role="fieldteam"] [data-sonner-toaster],
+[data-role="fieldteam"] [data-sonner-toaster],
+[data-role="field_team"] [data-sonner-toaster],
+[data-sonner-toaster][data-user-role="fieldteam"],
+[data-sonner-toaster].role-fieldteam {
+  --info-bg: #FFFBEB !important;
+  --info-border: #FCD34D !important;
+  --info-text: #92400E !important;
+  --success-bg: #FFFBEB !important;
+  --success-border: #FCD34D !important;
+  --success-text: #92400E !important;
+  --normal-bg: #FFFBEB !important;
+  --normal-border: #FCD34D !important;
+  --normal-text: #92400E !important;
+}
+
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]),
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]),
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]),
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toaster].role-fieldteam [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) {
+  background-color: #FFFBEB !important;
+  border: 1px solid #FCD34D !important;
+  color: #92400E !important;
+  box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -4px rgba(245, 158, 11, 0.1) !important;
+}
+
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) [data-title] {
+  color: #78350F !important;
+  font-weight: 600 !important;
+}
+
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) [data-description] {
+  color: #B45309 !important;
+}
+
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]) [data-icon],
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) [data-icon],
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) [data-icon] svg {
+  color: #D97706 !important;
+  stroke: #D97706 !important;
+  fill: none;
+}
+
+[data-user-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-role="fieldteam"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-role="field_team"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+.role-fieldteam [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-sonner-toast].role-fieldteam:not([data-type="error"]) [data-button] {
+  background-color: #D97706 !important;
+  color: #FFFFFF !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
+
+/* 2. ADMIN THEME (Royal Purple) */
+[data-user-role="admin"] [data-sonner-toaster],
+[data-role="admin"] [data-sonner-toaster],
+[data-sonner-toaster][data-user-role="admin"],
+[data-sonner-toaster].role-admin {
+  --info-bg: #FAF5FF !important;
+  --info-border: #E9D5FF !important;
+  --info-text: #6B21A8 !important;
+  --success-bg: #FAF5FF !important;
+  --success-border: #E9D5FF !important;
+  --success-text: #6B21A8 !important;
+  --normal-bg: #FAF5FF !important;
+  --normal-border: #E9D5FF !important;
+  --normal-text: #6B21A8 !important;
+}
+
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]),
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]),
+.role-admin [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toaster].role-admin [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toast].role-admin:not([data-type="error"]) {
+  background-color: #FAF5FF !important;
+  border: 1px solid #E9D5FF !important;
+  color: #6B21A8 !important;
+  box-shadow: 0 10px 15px -3px rgba(147, 51, 234, 0.15), 0 4px 6px -4px rgba(147, 51, 234, 0.1) !important;
+}
+
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+.role-admin [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-sonner-toast].role-admin:not([data-type="error"]) [data-title] {
+  color: #581C87 !important;
+  font-weight: 600 !important;
+}
+
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+.role-admin [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-sonner-toast].role-admin:not([data-type="error"]) [data-description] {
+  color: #7E22CE !important;
+}
+
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+.role-admin [data-sonner-toast]:not([data-type="error"]) [data-icon],
+.role-admin [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-sonner-toast].role-admin:not([data-type="error"]) [data-icon],
+[data-sonner-toast].role-admin:not([data-type="error"]) [data-icon] svg {
+  color: #7E22CE !important;
+  stroke: #7E22CE !important;
+  fill: none;
+}
+
+[data-user-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-role="admin"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+.role-admin [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-sonner-toast].role-admin:not([data-type="error"]) [data-button] {
+  background-color: #7E22CE !important;
+  color: #FFFFFF !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
+
+/* 3. CLIENT THEME (Fresh Emerald / Green) */
+[data-user-role="client"] [data-sonner-toaster],
+[data-role="client"] [data-sonner-toaster],
+[data-sonner-toaster][data-user-role="client"],
+[data-sonner-toaster].role-client {
+  --info-bg: #F0FDF4 !important;
+  --info-border: #BBF7D0 !important;
+  --info-text: #065F46 !important;
+  --success-bg: #F0FDF4 !important;
+  --success-border: #BBF7D0 !important;
+  --success-text: #065F46 !important;
+  --normal-bg: #F0FDF4 !important;
+  --normal-border: #BBF7D0 !important;
+  --normal-text: #065F46 !important;
+}
+
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]),
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]),
+.role-client [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toaster].role-client [data-sonner-toast]:not([data-type="error"]),
+[data-sonner-toast].role-client:not([data-type="error"]) {
+  background-color: #F0FDF4 !important;
+  border: 1px solid #BBF7D0 !important;
+  color: #065F46 !important;
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.15), 0 4px 6px -4px rgba(16, 185, 129, 0.1) !important;
+}
+
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-title],
+.role-client [data-sonner-toast]:not([data-type="error"]) [data-title],
+[data-sonner-toast].role-client:not([data-type="error"]) [data-title] {
+  color: #064E3B !important;
+  font-weight: 600 !important;
+}
+
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-description],
+.role-client [data-sonner-toast]:not([data-type="error"]) [data-description],
+[data-sonner-toast].role-client:not([data-type="error"]) [data-description] {
+  color: #047857 !important;
+}
+
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-icon],
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+.role-client [data-sonner-toast]:not([data-type="error"]) [data-icon],
+.role-client [data-sonner-toast]:not([data-type="error"]) [data-icon] svg,
+[data-sonner-toast].role-client:not([data-type="error"]) [data-icon],
+[data-sonner-toast].role-client:not([data-type="error"]) [data-icon] svg {
+  color: #059669 !important;
+  stroke: #059669 !important;
+  fill: none;
+}
+
+[data-user-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-role="client"] [data-sonner-toast]:not([data-type="error"]) [data-button],
+.role-client [data-sonner-toast]:not([data-type="error"]) [data-button],
+[data-sonner-toast].role-client:not([data-type="error"]) [data-button] {
+  background-color: #059669 !important;
+  color: #FFFFFF !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
+
+/* ==========================================================================
+   Radix Dropdown & Pop-up Role Themes ("the arrow going on them" & Popups)
+   ========================================================================== */
+
+/* Field Team Dropdown Item Hover/Highlight */
+html[data-user-role="fieldteam"] [data-radix-dropdown-menu-content] [data-highlighted],
+body[data-user-role="fieldteam"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-user-role="fieldteam"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-role="fieldteam"] [data-radix-dropdown-menu-content] [data-highlighted],
+.role-fieldteam [data-radix-dropdown-menu-content] [data-highlighted] {
+  background-color: #FEF3C7 !important;
+  color: #78350F !important;
+}
+
+/* Admin Dropdown Item Hover/Highlight */
+html[data-user-role="admin"] [data-radix-dropdown-menu-content] [data-highlighted],
+body[data-user-role="admin"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-user-role="admin"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-role="admin"] [data-radix-dropdown-menu-content] [data-highlighted],
+.role-admin [data-radix-dropdown-menu-content] [data-highlighted] {
+  background-color: #F3E8FF !important;
+  color: #581C87 !important;
+}
+
+/* Client Dropdown Item Hover/Highlight */
+html[data-user-role="client"] [data-radix-dropdown-menu-content] [data-highlighted],
+body[data-user-role="client"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-user-role="client"] [data-radix-dropdown-menu-content] [data-highlighted],
+[data-role="client"] [data-radix-dropdown-menu-content] [data-highlighted],
+.role-client [data-radix-dropdown-menu-content] [data-highlighted] {
+  background-color: #DCFCE7 !important;
+  color: #064E3B !important;
+}
+
+/* Custom ClearFlow Map Marker Styles */
+.clearflow-custom-marker,
+.clearflow-custom-marker.leaflet-div-icon,
+.custom-searched-location-pin,
+.custom-searched-location-pin.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+@keyframes pinFloatBounce {
+  0%, 100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(-14px);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes pinShadowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(0.55);
+    opacity: 0.12;
+  }
+}
+
+.animate-pin-bounce {
+  animation: pinFloatBounce 1.2s ease-in-out infinite;
+}
+
+.animate-pin-shadow {
+  animation: pinShadowPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cfMarkerRadar {
+  0% {
+    transform: translate(-50%, 50%) scale(0.5);
+    opacity: 0.95;
+  }
+  65% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate(-50%, 50%) scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes cfMarkerFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes cfMarkerGlowPulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.cf-marker-radar {
+  animation: cfMarkerRadar 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.cf-marker-float {
+  animation: cfMarkerFloat 2.6s ease-in-out infinite;
+}
+
+.cf-marker-glow {
+  animation: cfMarkerGlowPulse 1.8s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Browser Autofill Neutralization (Prevents default light-blue #e8f0fe boxes)
+   ========================================================================== */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #091712 inset !important;
+  box-shadow: 0 0 0 1000px #091712 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+  transition: background-color 50000s ease-in-out 0s, color 50000s ease-in-out 0s;
+  border-radius: inherit;
+}
+
+/* Theme-specific autofill overrides for Admin (Purple) and Field Team (Amber) */
+html[data-user-role="admin"] input:-webkit-autofill,
+body[data-user-role="admin"] input:-webkit-autofill,
+[data-role="admin"] input:-webkit-autofill,
+.role-admin input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #0e071c inset !important;
+  box-shadow: 0 0 0 1000px #0e071c inset !important;
+}
+
+html[data-user-role="fieldteam"] input:-webkit-autofill,
+body[data-user-role="fieldteam"] input:-webkit-autofill,
+[data-role="fieldteam"] input:-webkit-autofill,
+.role-fieldteam input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #180c04 inset !important;
+  box-shadow: 0 0 0 1000px #180c04 inset !important;
+}
+
+/* ==========================================================================
+   Leaflet Map Container & Tile Dimension Fixes (Prevents right-side gray blank)
+   ========================================================================== */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #f1f5f9 !important;
+  outline: 0;
+}
+
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-tile {
+  visibility: inherit !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Smooth Leaflet Tile Layer Opacity Transition (Zero Shutter / Zero Flash) */
+.leaflet-tile-pane .leaflet-layer {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
+}
+
+/* ==========================================================================
+   Leaflet Zoom Controls (+ / -) Comprehensive Pixel-Perfect Styling Fix
+   (Across all portals: Client, Field Team, Admin)
+   ========================================================================== */
+.leaflet-bar.leaflet-control-zoom,
+.leaflet-touch .leaflet-bar.leaflet-control-zoom,
+.leaflet-control-zoom {
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.12), 0 1px 3px -1px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  background-color: #ffffff !important;
+  margin-top: 12px;
+  margin-left: 12px;
+}
+
+/* Margin when map container has top-left floating layer toggle button */
+.has-layer-switcher .leaflet-control-zoom,
+.has-layer-switcher .leaflet-top.leaflet-left .leaflet-control-zoom,
+.has-layer-switcher .leaflet-left .leaflet-control-zoom {
+  margin-top: 48px !important;
+  margin-left: 12px !important;
+}
+
+.leaflet-control-zoom a,
+.leaflet-control-zoom a.leaflet-control-zoom-in,
+.leaflet-control-zoom a.leaflet-control-zoom-out,
+.leaflet-bar a.leaflet-control-zoom-in,
+.leaflet-bar a.leaflet-control-zoom-out,
+.leaflet-touch .leaflet-control-zoom a,
+.leaflet-touch .leaflet-control-zoom a.leaflet-control-zoom-in,
+.leaflet-touch .leaflet-control-zoom a.leaflet-control-zoom-out,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  background-color: #ffffff !important;
+  color: #374151 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  text-indent: 0 !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.15s ease-in-out !important;
+  user-select: none !important;
+  outline: none !important;
+}
+
+.leaflet-control-zoom a:first-child,
+.leaflet-bar a.leaflet-control-zoom-in,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-in {
+  border-top-left-radius: 9px !important;
+  border-top-right-radius: 9px !important;
+}
+
+.leaflet-control-zoom a:last-child,
+.leaflet-control-zoom a.leaflet-control-zoom-out,
+.leaflet-bar a.leaflet-control-zoom-out,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+  border-bottom: none !important;
+  border-bottom-left-radius: 9px !important;
+  border-bottom-right-radius: 9px !important;
+}
+
+.leaflet-control-zoom a span,
+.leaflet-touch .leaflet-control-zoom a span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-indent: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.leaflet-control-zoom a.leaflet-control-zoom-in span,
+.leaflet-touch .leaflet-control-zoom a.leaflet-control-zoom-in span {
+  transform: translateY(-0.5px) !important;
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+}
+
+.leaflet-control-zoom a.leaflet-control-zoom-out span,
+.leaflet-touch .leaflet-control-zoom a.leaflet-control-zoom-out span {
+  transform: translateY(-1.5px) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+  color: #374151 !important;
+}
+
+.leaflet-control-zoom a:hover,
+.leaflet-touch .leaflet-control-zoom a:hover {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+}
+
+.leaflet-control-zoom a:active,
+.leaflet-touch .leaflet-control-zoom a:active {
+  background-color: #f3f4f6 !important;
+}
+
+/* Role-themed hover highlights */
+.role-admin .leaflet-control-zoom a:hover,
+[data-role="admin"] .leaflet-control-zoom a:hover {
+  background-color: #faf5ff !important;
+  color: #7e22ce !important;
+}
+.role-admin .leaflet-control-zoom a:hover span,
+[data-role="admin"] .leaflet-control-zoom a:hover span {
+  color: #7e22ce !important;
+}
+
+.role-client .leaflet-control-zoom a:hover,
+[data-role="client"] .leaflet-control-zoom a:hover {
+  background-color: #f0fdfa !important;
+  color: #0d9488 !important;
+}
+.role-client .leaflet-control-zoom a:hover span,
+[data-role="client"] .leaflet-control-zoom a:hover span {
+  color: #0d9488 !important;
+}
+
+.role-fieldteam .leaflet-control-zoom a:hover,
+[data-role="fieldteam"] .leaflet-control-zoom a:hover {
+  background-color: #fffbeb !important;
+  color: #d97706 !important;
+}
+.role-fieldteam .leaflet-control-zoom a:hover span,
+[data-role="fieldteam"] .leaflet-control-zoom a:hover span {
+  color: #d97706 !important;
+}
+
+/* Global Viewport & Base Container Layout */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Auth / Login page background continuity: ensure html and body match auth dark backgrounds */
+html:has([data-auth-page="true"]),
+html:has([data-auth-page="true"]) body,
+html:has([data-auth-page="true"]) #root,
+html:has(.auth-layout),
+html:has(.auth-layout) body,
+html:has(.auth-layout) #root {
+  background-color: #080312 !important;
+  overflow: hidden !important;
+}
+
+/* Prevent layout jump/shift when any Radix menu/dialog/popover opens */
+body[data-scroll-locked],
+html[data-scroll-locked] {
+  padding-right: 0px !important;
+  margin-right: 0px !important;
+}
+
+/* Animated gradient for ClearFlow logo */
+@keyframes gradient-shift {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-gradient {
+  animation: gradient-shift 8s linear infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+/* Global Website Typography: Premium Outfit everywhere matching brand logo photo */
+html, body, button, input, select, textarea, .font-sans {
+  font-family: 'Outfit', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure ClearFlow Logo & Brand Wordmark use pure Outfit */
+.clearflow-brand-logo,
+.clearflow-brand-text {
+  font-family: 'Outfit', sans-serif !important;
+}
+
+/* Ensure Login / Auth pages also use pure Outfit */
+.auth-layout,
+.auth-page,
+[data-auth-page="true"],
+.font-system,
+.font-system * {
+  font-family: 'Outfit', sans-serif !important;
+}
+
+/* Dual-pane independent scrollbar styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.35);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.6);
+}
+
+/* ==========================================================================
+   CROSS-DEVICE RESPONSIVE ENGINEERING & VIEWPORT FOUNDATION
+   ========================================================================== */
+
+/* 1. Viewport Root Safety & Zero Unintended Page Overflow */
+html {
+  box-sizing: border-box;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 2. Touch Momentum & Responsive Text Wrapping */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.break-words-safe {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* 3. Mobile Table Controlled Overflow Container */
+.responsive-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+/* 4. Touch Target Accessibility (WCAG 2.5.5 / 2.5.8 Target Size) */
+@media (pointer: coarse) {
+  button, 
+  [role="button"], 
+  input[type="submit"], 
+  input[type="reset"], 
+  input[type="button"] {
+    min-height: max(40px, 2.5rem);
+  }
+}
+
+/* 5. Safe Area Insets Utilities for Notched Devices */
+.safe-pt {
+  padding-top: max(1rem, env(safe-area-inset-top, 1rem));
+}
+
+.safe-pb {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+}
+
+.safe-pl {
+  padding-left: max(1rem, env(safe-area-inset-left, 1rem));
+}
+
+.safe-pr {
+  padding-right: max(1rem, env(safe-area-inset-right, 1rem));
+}
+
+/* 6. Respect Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+
+
+
+
+
+
+

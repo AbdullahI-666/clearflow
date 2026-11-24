@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, MapPin, Briefcase, Phone, MessageSquare } from 'lucide-react';
+import { Star, MapPin, Phone, MessageSquare } from 'lucide-react';
+import { CategorySquircleLogo } from '@/shared/utils/categoryIcons';
 
 interface TeamCardProps {
   team: {
@@ -21,7 +22,7 @@ interface TeamCardProps {
 
 export const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
   const statusColor = 
-    team.status === 'Available' ? 'bg-emerald-500' : 
+    team.status === 'Available' ? 'bg-purple-600' : 
     team.status === 'On Job' ? 'bg-amber-500' : 'bg-gray-400';
 
   return (
@@ -34,13 +35,13 @@ export const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
                 {team.initials}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 group-hover:text-teal-700 transition-colors">{team.name}</h3>
+                <h3 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors">{team.name}</h3>
                 <p className="text-sm text-gray-500">Lead: {team.lead}</p>
               </div>
             </div>
             <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
               <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-              <span className="text-sm font-semibold text-gray-700">{team.rating}</span>
+              <span className="text-sm font-semibold text-gray-700">{Number(team.rating ?? 0.0).toFixed(1)}</span>
             </div>
           </div>
 
@@ -59,20 +60,21 @@ export const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 mb-5">
+          <div className="flex flex-wrap items-center gap-1.5 mb-5">
             {team.categories.map((cat, i) => (
-              <Badge key={i} variant="secondary" className="bg-teal-50 text-teal-700 hover:bg-teal-100 font-medium">
-                {cat}
+              <Badge key={i} variant="secondary" className="bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100 font-medium flex items-center gap-1.5 py-1 px-2.5">
+                <CategorySquircleLogo name={cat} size="xs" />
+                <span>{cat}</span>
               </Badge>
             ))}
           </div>
         </div>
 
         <div className="grid grid-cols-2 border-t border-gray-100 divide-x divide-gray-100 bg-gray-50/50">
-          <Button variant="ghost" className="rounded-none h-12 text-gray-600 hover:text-teal-700 hover:bg-teal-50">
+          <Button variant="ghost" className="rounded-none h-12 text-gray-600 hover:text-purple-700 hover:bg-purple-50 cursor-pointer">
             <Phone className="h-4 w-4 mr-2" /> Call
           </Button>
-          <Button variant="ghost" className="rounded-none h-12 text-gray-600 hover:text-teal-700 hover:bg-teal-50">
+          <Button variant="ghost" className="rounded-none h-12 text-gray-600 hover:text-purple-700 hover:bg-purple-50 cursor-pointer">
             <MessageSquare className="h-4 w-4 mr-2" /> Message
           </Button>
         </div>

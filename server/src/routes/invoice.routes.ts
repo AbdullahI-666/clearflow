@@ -13,6 +13,8 @@ router.get('/:id/pdf', invoiceController.getInvoicePdf);
 
 // Admin-only management
 router.post('/', authorize(['Admin']), invoiceController.create);
+router.put('/:id', authorize(['Admin']), invoiceController.update);
 router.patch('/:id/status', authorize(['Admin']), invoiceController.updateStatus);
+router.delete('/:id', authorize(['Admin', 'Client', 'FieldTeam']), invoiceController.remove);
 
 export default router;

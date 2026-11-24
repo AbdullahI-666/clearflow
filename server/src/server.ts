@@ -1,19 +1,18 @@
+// ClearFlow Unified Server Entrypoint - Enterprise Three-Admin Sync Ready
 import http from 'http';
-import mongoose from 'mongoose';
 import app from './app.js';
 import { env } from './config/env.js';
 import { initSocket } from './socket/index.js';
 import { seedDemoUsersIfMissing } from './services/auth.service.js';
-
-// Disable query buffering so unhandled database timeouts never freeze API requests
-mongoose.set('bufferCommands', false);
+import { scheduler } from './services/scheduler.service.js';
+import { connectDB } from './config/db.js';
 
 const server = http.createServer(app);
 initSocket(server);
 
 const port = env.PORT || 3000;
 
-server.listen(port, () => {
+server.listen(port, async () => {
   console.log('\n======================================================');
   console.log('       🌟 CLEARFLOW UNIFIED SYSTEM IS READY 🌟        ');
   console.log('======================================================');
@@ -22,15 +21,23 @@ server.listen(port, () => {
   console.log(`📖 Swagger API Docs:  http://localhost:${port}/api-docs`);
   console.log(`💓 System Health:     http://localhost:${port}/api/health`);
   console.log('======================================================\n');
+
+  // Connect to Supabase PostgreSQL and seed demo data
+  await connectDB();
+  await seedDemoUsersIfMissing();
+
+  // Start background cron scheduler daemon
+  scheduler.startAll();
 });
 
-mongoose.connect(env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 10000,
-  connectTimeoutMS: 10000,
-}).then(async () => {
-  console.log('✅ [ClearFlow Backend] Connected to MongoDB Atlas');
-  await seedDemoUsersIfMissing();
-}).catch(err => {
-  console.warn('⚠️  [ClearFlow Backend] MongoDB Connection Notice:', err.message || err);
-  console.log('ℹ️  [ClearFlow Backend] Operating in High-Availability In-Memory Demo Mode');
-});
+// Graceful process termination & scheduler shutdown
+const shutdown = () => {
+  console.log('\n[Server] Graceful shutdown initiated...');
+  scheduler.stopAll();
+  server.close(() => {
+    console.log('[Server] HTTP server listener closed.');
+    process.exit(0);
+  });
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

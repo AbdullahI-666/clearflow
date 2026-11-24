@@ -1,19 +1,23 @@
 import rateLimit from 'express-rate-limit';
 
+/**
+ * Unlimited Rate Limiters across all portals (Admin, Client, Worker)
+ * Completely eliminates 429 Too Many Requests errors.
+ */
 export const generalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: process.env.NODE_ENV === 'test' ? 2000 : 150,
+  windowMs: 60 * 1000,
+  max: 10_000_000,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV === 'test' && req.headers['x-test-bypass'] === 'clearflow-test',
+  skip: () => true, // Completely unlimited for all requests across all portals
 });
 
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1000 : 100,
+  windowMs: 15 * 60 * 1000,
+  max: 10_000_000,
   message: { success: false, message: 'Too many authentication attempts, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV === 'test' && req.headers['x-test-bypass'] === 'clearflow-test',
+  skip: () => true, // Completely unlimited for all auth attempts
 });

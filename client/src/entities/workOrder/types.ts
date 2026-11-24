@@ -1,4 +1,17 @@
-export type WorkOrderStatus = 'Open' | 'Assigned' | 'InProgress' | 'PendingReview' | 'Closed' | 'Flagged';
+export type WorkOrderStatus = 
+  | 'Open' 
+  | 'Assigned' 
+  | 'InProgress' 
+  | 'PendingReview' 
+  | 'PendingClientConfirmation' 
+  | 'RevisionRequired' 
+  | 'Completed' 
+  | 'Closed' 
+  | 'Flagged' 
+  | 'Cancelled' 
+  | 'Refused' 
+  | 'Disputed' 
+  | 'Declined';
 
 export interface ServiceCategory {
   _id: string;
@@ -14,6 +27,7 @@ export interface WorkOrder {
   _id: string;
   id?: string;
   workOrderCode: string;
+  title?: string;
   clientId: {
     _id: string;
     name: string;
@@ -33,12 +47,47 @@ export interface WorkOrder {
   locationLng: number;
   description: string;
   urgency: 'Low' | 'Medium' | 'High';
+  budget?: number;
+  agreedPrice?: number;
+  estimatedPrice?: number;
+  selectedOfferPrice?: number;
+  actualAmountPaid?: number;
+  paymentMethod?: string;
+  completionNotes?: string;
   preferredTime?: string;
+  pointsToUnlock?: number;
+  distanceKm?: number;
+  isUnlocked?: boolean;
+  hasMyOffer?: boolean;
   beforeImageUrl?: string;
   afterImageUrl?: string;
+  beforeImages?: string[];
+  afterImages?: string[];
+  clientFeedback?: {
+    rating?: number;
+    comment?: string;
+    satisfaction?: 'Approved' | 'ChangesRequested';
+    submittedAt?: string;
+    clientName?: string;
+  };
+  adminInspection?: {
+    inspectedAt?: string;
+    inspectedBy?: string;
+    status?: 'Passed' | 'Flagged' | 'Pending';
+    notes?: string;
+    aiConfidenceScore?: number;
+    aiResult?: string;
+    metrics?: any;
+  };
+  progressPercentage?: number;
+  progressStage?: string;
   isWasteCategory?: boolean;
   wasteType?: string;
   wasteQuantityKg?: number;
+  isAccepted?: boolean;
+  acceptedAt?: string;
+  acceptedBy?: string;
+  rejectionReason?: string;
   aiConfidenceScore?: number;
   aiResult?: string;
   aiVerificationDetails?: AiVerificationDetails;
@@ -80,19 +129,5 @@ export interface AiVerificationDetails {
   };
   findings?: string[];
   serviceRecommendation?: string;
-  categoryVerification?: {
-    category: string;
-    icon: string;
-    specializedChecks: Array<{
-      name: string;
-      passed: boolean;
-      detail: string;
-      score: number;
-      icon?: string;
-    }>;
-    complianceCertificateEligible: boolean;
-    certificateCode?: string;
-    summary: string;
-  };
 }
 

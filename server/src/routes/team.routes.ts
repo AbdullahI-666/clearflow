@@ -17,5 +17,6 @@ router.get('/:id', teamController.getById);
 router.post('/', authorize(['Admin']), createTeamValidator, validate, teamController.create);
 router.patch('/:id', authorize(['Admin']), updateTeamValidator, validate, teamController.update);
 router.patch('/:id/deactivate', authorize(['Admin']), teamController.deactivate);
+router.delete('/:id', authorize(['Admin']), teamController.remove);
 
 export default router;

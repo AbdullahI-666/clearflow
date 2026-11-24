@@ -7,7 +7,7 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'ClearFlow API',
       version: '1.0.0',
-      description: 'API documentation for ClearFlow Facility Management System',
+      description: 'API documentation for ClearFlow Modern Facility Management System',
     },
     servers: [
       {

@@ -19,3 +19,9 @@ export const markAllRead = async (req: AuthRequest, res: Response) => {
   await notifService.markAllRead(userId);
   res.json(ApiResponse.success(null, 'All notifications marked as read'));
 };
+
+export const deleteOne = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId || '';
+  await notifService.deleteOne(req.params.id as string, userId);
+  res.json(ApiResponse.success(null, 'Notification deleted'));
+};

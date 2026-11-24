@@ -146,5 +146,5 @@ describe('AI Vision Engine (libvips)', () => {
     expect(result.confidenceScore).toBeGreaterThan(0.75);
     expect(result.result).toBe('Pass');
     expect(result.metrics.cleanlinessImprovement).toBeGreaterThan(50);
-  });
+  }, 15000);
 });

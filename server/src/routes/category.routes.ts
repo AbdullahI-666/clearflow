@@ -12,6 +12,7 @@ router.get('/:id', categoryController.getById);
 // Admin-only management
 router.post('/', authenticate, authorize(['Admin']), categoryController.create);
 router.patch('/:id', authenticate, authorize(['Admin']), categoryController.update);
+router.put('/:id', authenticate, authorize(['Admin']), categoryController.update);
 router.delete('/:id', authenticate, authorize(['Admin']), categoryController.remove);
 
 export default router;

@@ -31,7 +31,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 Select.displayName = "Select"
 
 const SelectTrigger = Select;
-const SelectValue = ({ placeholder }: { placeholder?: string }) => null;
+const SelectValue = ({ placeholder: _placeholder }: { placeholder?: string }) => null;
 const SelectContent = ({ children }: { children: React.ReactNode }) => <>{children}</>;
 const SelectItem = React.forwardRef<HTMLOptionElement, React.OptionHTMLAttributes<HTMLOptionElement>>(
   ({ className, children, ...props }, ref) => (

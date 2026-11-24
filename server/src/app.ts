@@ -5,7 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
+import { swaggerSpec } from './config/swagger.js';
 import { ENV } from './config/env.js';
 import { generalLimiter } from './middleware/rateLimiter.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
@@ -23,6 +23,8 @@ import settingsRoutes from './routes/settings.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import invoiceRoutes from './routes/invoice.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import schedulerRoutes from './routes/scheduler.routes.js';
+import marketplaceRoutes from './routes/marketplace.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,12 +41,26 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors({ origin: ENV.CORS_ORIGIN || '*' }));
 app.use(generalLimiter);
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve compiled React frontend assets
+// Serve compiled React frontend assets or client public assets (samples, logos)
 if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath, {
+    maxAge: 0,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      }
+    }
+  }));
+}
+const clientPublicPath = path.resolve(process.cwd(), 'client/public');
+const clientPublicPathAlt = path.resolve(process.cwd(), '../client/public');
+if (fs.existsSync(clientPublicPath)) {
+  app.use(express.static(clientPublicPath));
+} else if (fs.existsSync(clientPublicPathAlt)) {
+  app.use(express.static(clientPublicPathAlt));
 }
 
 // Health Check Endpoint (Render / Uptime monitoring)
@@ -57,10 +73,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const swaggerSpec = swaggerJsdoc({
-  definition: { openapi: '3.0.0', info: { title: 'ClearFlow API', version: '1.0.0' } },
-  apis: ['./src/routes/*.js', './src/routes/*.ts']
-});
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Mount REST API Endpoints
@@ -77,6 +89,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/scheduler', schedulerRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
 
 // Catch-All Route: Serve React SPA for all frontend routes
 app.get(/(.*)/, (req, res, next) => {
@@ -86,6 +100,9 @@ app.get(/(.*)/, (req, res, next) => {
   const indexPath = path.resolve(clientDistPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     const html = fs.readFileSync(indexPath, 'utf8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.type('html').send(html);
   }
   res.status(200).send(`

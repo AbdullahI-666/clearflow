@@ -1,49 +1,71 @@
 import React from 'react';
 import { CheckCircle2, AlertCircle, Clock, Check } from 'lucide-react';
+import { useRoleTheme } from '@/shared/hooks/useRoleTheme';
 
 interface StatusBadgeProps {
   status: string;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-  let bgColor = 'bg-gray-100';
-  let textColor = 'text-gray-700';
+  const theme = useRoleTheme();
+  let pillStyles = 'bg-gray-50 text-gray-700 border-gray-200/90';
   let Icon = CheckCircle2;
 
-  switch (status.toLowerCase()) {
+  const normalized = (status || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+  switch (normalized) {
     case 'open':
     case 'unassigned':
-      bgColor = 'bg-gray-100';
-      textColor = 'text-gray-700';
+      pillStyles = 'bg-sky-50 text-sky-700 border-sky-200/90';
       Icon = AlertCircle;
       break;
-    case 'in progress':
-    case 'on job':
-      bgColor = 'bg-teal-100';
-      textColor = 'text-teal-700';
+    case 'assigned':
+      pillStyles = 'bg-blue-50 text-blue-700 border-blue-200/90';
       Icon = Clock;
       break;
-    case 'pending review':
-      bgColor = 'bg-amber-100';
-      textColor = 'text-amber-700';
+    case 'inprogress':
+    case 'onjob':
+      pillStyles =
+        theme.role === 'admin'
+          ? 'bg-purple-50 text-purple-700 border-purple-200/90'
+          : theme.role === 'fieldteam'
+          ? 'bg-amber-50 text-amber-700 border-amber-200/90'
+          : 'bg-teal-50 text-teal-700 border-teal-200/90';
       Icon = Clock;
+      break;
+    case 'pendingreview':
+      pillStyles = 'bg-purple-50 text-purple-700 border-purple-200/90';
+      Icon = Clock;
+      break;
+    case 'pendingclientconfirmation':
+      pillStyles = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+      Icon = Clock;
+      break;
+    case 'revisionrequired':
+      pillStyles = 'bg-rose-50 text-rose-800 border-rose-300 font-bold';
+      Icon = AlertCircle;
+      break;
+    case 'disputed':
+      pillStyles = 'bg-red-100 text-red-900 border-red-300 font-bold';
+      Icon = AlertCircle;
       break;
     case 'completed':
     case 'available':
-      bgColor = 'bg-emerald-100';
-      textColor = 'text-emerald-700';
+    case 'closed':
+      pillStyles = 'bg-emerald-50 text-emerald-700 border border-emerald-200/90';
       Icon = Check;
       break;
+    case 'cancelled':
+    case 'refused':
     case 'flagged':
-      bgColor = 'bg-red-100';
-      textColor = 'text-red-700';
+      pillStyles = 'bg-red-50 text-red-700 border-red-200/90';
       Icon = AlertCircle;
       break;
   }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
-      <Icon className="w-3 h-3 mr-1" />
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs ${pillStyles}`}>
+      <Icon className="w-3.5 h-3.5 mr-1.5" />
       {status}
     </span>
   );

@@ -13,6 +13,17 @@ export interface User {
   email: string;
   role: Role | 'Client' | 'FieldTeam' | 'Admin';
   phone?: string;
+  cnic?: string;
+  cnicVerified?: boolean;
+  verificationStatus?: 'None' | 'Pending' | 'Verified' | 'Rejected' | string;
+  address?: string;
+  city?: string;
+  locationLat?: number;
+  locationLng?: number;
+  lat?: number;
+  lng?: number;
+  serviceCategories?: string[];
+  experienceYears?: string;
   avatarUrl?: string;
   isVerified?: boolean;
   isActive?: boolean;

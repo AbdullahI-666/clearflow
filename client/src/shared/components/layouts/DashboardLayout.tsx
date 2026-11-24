@@ -1,158 +1,654 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, Map, MessageSquare, BarChart3, Users, Menu, Search, UserCircle, LogOut, Settings, FolderKanban, Receipt } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, ClipboardList, Map, MessageSquare, Briefcase, 
+  Menu, UserCircle, LogOut, Settings, FolderKanban, RefreshCw,
+  Receipt, History, LifeBuoy, Star, Wallet, Coins, Wrench, ArrowLeftRight
+} from 'lucide-react';
 import { useAuth } from '../../../entities/user/hooks/useAuth';
 import { usePermissions } from '../../../entities/user/hooks/usePermissions';
 import { Role } from '../../../entities/user/types';
-import { NotificationBell } from '../NotificationBell';
+import { VercelNotificationPopover } from '@/components/ui/vercel-notification-popover';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ClearFlowLogo } from '@/components/ui/clearflow-logo';
+import { socketClient } from '@/infrastructure/socket/client';
+import { useUnreadChat } from '../../hooks/useUnreadChat';
+import { Sidebar, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
+import { AnimatedPortalSidebar, type PortalNavItem, type PortalRole } from '@/components/ui/animated-portal-sidebar';
+import { apiClient, clearApiCache } from '@/infrastructure/api/client';
+import { ENDPOINTS } from '@/infrastructure/api/endpoints';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export const DashboardLayout = () => {
-  const { user, logout, updateUser } = useAuth();
-  const { isClient, isFieldTeam, isAdmin } = usePermissions();
+  const { user, logout, updateUser, login } = useAuth();
+  const { isAdmin } = usePermissions();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderRefreshing, setIsHeaderRefreshing] = useState(false);
+  const isDemoField =
+    (user?.email || '').toLowerCase().trim() === 'field@clearflow.com' ||
+    (user?.email || '').toLowerCase().trim() === 'worker@clearflow.com' ||
+    (user?.email || '').toLowerCase().trim() === 'fieldteam@clearflow.com' ||
+    user?._id === '65f000000000000000000004' ||
+    user?._id === '65f000000000000000000005';
 
+  const walletStorageKey = user?._id ? `clearflow_worker_wallet_${user._id}` : 'clearflow_worker_wallet_guest';
 
-  const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: [Role.CLIENT, Role.FIELD_TEAM, Role.ADMIN] },
-    { label: 'Work Orders', icon: ClipboardList, path: '/work-orders', roles: [Role.CLIENT, Role.FIELD_TEAM, Role.ADMIN] },
-    { label: 'Live Tracking', icon: Map, path: '/tracking', roles: [Role.ADMIN] },
-    { label: 'Categories', icon: FolderKanban, path: '/categories', roles: [Role.ADMIN] },
-    { label: 'Invoices', icon: Receipt, path: '/invoices', roles: [Role.ADMIN] },
-    { label: 'Analytics', icon: BarChart3, path: '/analytics', roles: [Role.ADMIN] },
-    { label: 'Teams', icon: Users, path: '/teams', roles: [Role.ADMIN] },
-    { label: 'Chat', icon: MessageSquare, path: '/chat', roles: [Role.CLIENT, Role.FIELD_TEAM, Role.ADMIN] },
-    { label: 'Settings', icon: Settings, path: '/settings', roles: [Role.ADMIN] },
-  ];
+  const [workerWallet, setWorkerWallet] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem(walletStorageKey) || localStorage.getItem('clearflow_worker_wallet');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.pointsBalance === 'number') {
+          return parsed;
+        }
+      }
+    } catch {}
+    return isDemoField ? { pointsBalance: 160, withdrawableBalance: 380.0 } : { pointsBalance: 0, withdrawableBalance: 0.0 };
+  });
+  const { hasUnreadChat } = useUnreadChat();
+  const location = useLocation();
+
+  const handleGlobalRefresh = async () => {
+    setIsHeaderRefreshing(true);
+    const start = Date.now();
+    try {
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data'));
+      const elapsed = Date.now() - start;
+      if (elapsed < 800) {
+        await new Promise((r) => setTimeout(r, 800 - elapsed));
+      }
+      toast.success('Portal data refreshed');
+    } finally {
+      setIsHeaderRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    socketClient.connect();
+  }, [user]);
+
+  // Ensure window always opens at the top when navigating between routes across all portals
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname]);
 
   const userRole = (user?.role || Role.CLIENT).toLowerCase();
-  const filteredNavItems = navItems.filter(item => 
-    item.roles.some(r => r.toLowerCase() === userRole || (r === 'FieldTeam' && userRole === 'field_team'))
-  );
+  const isAdminRole = userRole === 'admin';
+  const isFieldRole = userRole === 'fieldteam' || userRole === 'field_team' || userRole === 'field-team' || userRole === 'field' || userRole === 'worker';
+  const isClientRole = !isAdminRole && !isFieldRole;
+  const formattedRole = isAdminRole ? 'Admin' : isFieldRole ? 'Worker' : 'Client';
 
-  const NavContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-gray-100">
-      <div className="p-6 flex items-center gap-3 border-b border-gray-50">
-        <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">CF</span>
-        </div>
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">ClearFlow</h1>
-      </div>
-      
-      <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-teal-50 text-teal-700 relative font-bold'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-teal-600 rounded-r-full" />}
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-teal-600' : 'text-gray-400'}`} />
-                {item.label}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
+  useEffect(() => {
+    if (isFieldRole) {
+      apiClient.get(ENDPOINTS.MARKETPLACE.WALLET)
+        .then((res) => {
+          const walletPayload = res.data?.data?.wallet || res.data?.data || res.data?.wallet;
+          if (walletPayload && typeof walletPayload.pointsBalance === 'number') {
+            setWorkerWallet(walletPayload);
+            try {
+              localStorage.setItem(walletStorageKey, JSON.stringify(walletPayload));
+              localStorage.setItem('clearflow_worker_wallet', JSON.stringify(walletPayload));
+            } catch {}
+          }
+        })
+        .catch(() => {
+          setWorkerWallet((prev: any) => {
+            const fallback = prev || (isDemoField ? { pointsBalance: 160, withdrawableBalance: 380.0 } : { pointsBalance: 0, withdrawableBalance: 0.0 });
+            return fallback;
+          });
+        });
+    }
 
-      <div className="p-4 border-t border-gray-100">
-        <div className="px-3 py-2 bg-gray-50 rounded-lg flex items-center justify-between">
-          <span className="text-xs text-gray-600 font-medium truncate max-w-[130px]">{user?.name || 'User'}</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-teal-100 text-teal-800">
-            {user?.role || 'Client'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+    const handleWalletUpdated = (e: any) => {
+      if (e.detail && typeof e.detail.pointsBalance === 'number') {
+        setWorkerWallet(e.detail);
+        try {
+          localStorage.setItem(walletStorageKey, JSON.stringify(e.detail));
+          localStorage.setItem('clearflow_worker_wallet', JSON.stringify(e.detail));
+        } catch {}
+      }
+    };
+
+    const handleSocketWallet = (data: any) => {
+      if (!data) return;
+      const targetUserId = String(data.userId || data.technicianId || '');
+      const currentUserId = String(user?._id || '');
+      if (!targetUserId || targetUserId === currentUserId || isDemoField) {
+        const newBalance = typeof data.pointsBalance === 'number' ? data.pointsBalance : data.wallet?.pointsBalance;
+        if (typeof newBalance === 'number') {
+          setWorkerWallet((prev: any) => {
+            const updated = {
+              ...(prev || {}),
+              ...(data.wallet || {}),
+              pointsBalance: newBalance,
+            };
+            try {
+              localStorage.setItem(walletStorageKey, JSON.stringify(updated));
+              localStorage.setItem('clearflow_worker_wallet', JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+        }
+      }
+    };
+
+    const handleOpenWallet = () => navigate('/wallet');
+
+    window.addEventListener('clearflow:wallet-updated', handleWalletUpdated);
+    window.addEventListener('clearflow:open-wallet', handleOpenWallet);
+    socketClient.on('marketplace:wallet_updated', handleSocketWallet);
+    socketClient.on('wallet_updated', handleSocketWallet);
+
+    return () => {
+      window.removeEventListener('clearflow:wallet-updated', handleWalletUpdated);
+      window.removeEventListener('clearflow:open-wallet', handleOpenWallet);
+      socketClient.off('marketplace:wallet_updated', handleSocketWallet);
+      socketClient.off('wallet_updated', handleSocketWallet);
+    };
+  }, [isFieldRole, navigate, user?._id, walletStorageKey, isDemoField]);
+
+  // Centralized Real-Time Synchronization across Admin, Client, and Worker portals
+  useEffect(() => {
+    const handleCategorySync = () => {
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data'));
+      window.dispatchEvent(new CustomEvent('clearflow:categories-updated'));
+    };
+
+    const handleSettingsSync = (data: any) => {
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data'));
+      window.dispatchEvent(new CustomEvent('clearflow:company-updated', { detail: data }));
+    };
+
+    const handleUserRegisteredSync = (newUser: any) => {
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data'));
+      if (isAdminRole && newUser?.name) {
+        toast.info(`New ${newUser.role === 'FieldTeam' ? 'Worker' : newUser.role || 'user'} registered: ${newUser.name}`);
+      }
+    };
+
+    const handleUserUpdatedSync = (updatedUser?: any) => {
+      clearApiCache();
+      if (updatedUser) {
+        window.dispatchEvent(new CustomEvent('clearflow:user-updated', { detail: updatedUser }));
+        if (updatedUser.role === 'Admin') {
+          window.dispatchEvent(new CustomEvent('clearflow:company-updated', { 
+            detail: { 
+              companyName: updatedUser.name, 
+              phone: updatedUser.phone, 
+              address: updatedUser.address, 
+              companyIcon: updatedUser.avatar || updatedUser.avatarUrl 
+            } 
+          }));
+        }
+      }
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data', { detail: updatedUser }));
+    };
+
+    const handleWorkOrderSync = () => {
+      clearApiCache();
+      window.dispatchEvent(new CustomEvent('clearflow:refresh-data'));
+    };
+
+    socketClient.on('category:updated', handleCategorySync);
+    socketClient.on('category:created', handleCategorySync);
+    socketClient.on('category:deleted', handleCategorySync);
+    socketClient.on('categories:changed', handleCategorySync);
+    socketClient.on('settings:updated', handleSettingsSync);
+    socketClient.on('company:updated', handleSettingsSync);
+    socketClient.on('company:profile_updated', handleSettingsSync);
+    socketClient.on('user:registered', handleUserRegisteredSync);
+    socketClient.on('user:new', handleUserRegisteredSync);
+    socketClient.on('user:updated', handleUserUpdatedSync);
+    socketClient.on('profile:updated', handleUserUpdatedSync);
+    socketClient.on('workOrder:created', handleWorkOrderSync);
+    socketClient.on('workOrder:new', handleWorkOrderSync);
+    socketClient.on('workOrder:progress', handleWorkOrderSync);
+    socketClient.on('workOrder:updated', handleWorkOrderSync);
+
+    return () => {
+      socketClient.off('category:updated', handleCategorySync);
+      socketClient.off('category:created', handleCategorySync);
+      socketClient.off('category:deleted', handleCategorySync);
+      socketClient.off('categories:changed', handleCategorySync);
+      socketClient.off('settings:updated', handleSettingsSync);
+      socketClient.off('company:updated', handleSettingsSync);
+      socketClient.off('company:profile_updated', handleSettingsSync);
+      socketClient.off('user:registered', handleUserRegisteredSync);
+      socketClient.off('user:new', handleUserRegisteredSync);
+      socketClient.off('user:updated', handleUserUpdatedSync);
+      socketClient.off('profile:updated', handleUserUpdatedSync);
+      socketClient.off('workOrder:created', handleWorkOrderSync);
+      socketClient.off('workOrder:new', handleWorkOrderSync);
+      socketClient.off('workOrder:progress', handleWorkOrderSync);
+      socketClient.off('workOrder:updated', handleWorkOrderSync);
+    };
+  }, [isAdminRole]);
+
+
+  const handleSignOut = () => {
+    setIsMobileMenuOpen(false);
+    try {
+      sessionStorage.setItem('clearflow_from_signout', 'true');
+    } catch (e) {}
+    logout();
+    navigate('/login', { replace: true, state: { fromSignOut: true } });
+  };
+
+  const handleSwitchPortal = async (targetRole: 'Client' | 'FieldTeam') => {
+    try {
+      if (user?._id) {
+        const res = await apiClient.patch(`/users/${user._id}/role`, { targetRole });
+        if (res.data?.success && res.data.data?.user) {
+          const updatedUser = res.data.data.user;
+          const newToken = res.data.data.token;
+          login(newToken || localStorage.getItem('clearflow_token') || '', updatedUser);
+          toast.success(`Switched to ${targetRole === 'FieldTeam' ? 'Worker' : 'Client'} Portal`);
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+      }
+      if (user) {
+        updateUser({ role: targetRole });
+        toast.success(`Switched to ${targetRole === 'FieldTeam' ? 'Worker' : 'Client'} Portal`);
+        navigate('/dashboard', { replace: true });
+      }
+    } catch {
+      if (user) {
+        updateUser({ role: targetRole });
+        toast.success(`Switched to ${targetRole === 'FieldTeam' ? 'Worker' : 'Client'} Portal`);
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  };
+
+  const currentRoleKey: PortalRole = isAdminRole ? 'admin' : isFieldRole ? 'fieldteam' : 'client';
+
+  // Navigation Links tailored to exact user requirements with social-links style gradients
+  const portalNavItems: PortalNavItem[] = isFieldRole ? [
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-600 via-orange-600 to-amber-500",
+      hoverGradient: "from-amber-500 via-orange-500 to-amber-400",
+    },
+    {
+      label: 'My Wallet',
+      href: '/wallet',
+      icon: <Wallet className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-700 via-yellow-600 to-amber-500",
+      hoverGradient: "from-amber-600 via-yellow-500 to-amber-400",
+    },
+    {
+      label: 'Work Orders',
+      href: '/work-orders',
+      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
+      gradient: "from-orange-600 via-amber-600 to-orange-500",
+      hoverGradient: "from-orange-500 via-amber-500 to-orange-400",
+    },
+    {
+      label: 'Live Tracking',
+      href: '/tracking',
+      icon: <Map className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-600 via-orange-500 to-amber-500",
+      hoverGradient: "from-amber-500 via-orange-400 to-amber-400",
+    },
+    {
+      label: 'My Earnings',
+      href: '/invoices',
+      icon: <Receipt className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-600 via-yellow-600 to-orange-500",
+      hoverGradient: "from-amber-500 via-yellow-500 to-orange-400",
+    },
+    {
+      label: 'Ratings & Reviews',
+      href: '/reviews',
+      icon: <Star className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-500 via-yellow-500 to-orange-400",
+      hoverGradient: "from-amber-400 via-yellow-400 to-orange-300",
+    },
+    {
+      label: 'Chat',
+      href: '/chat',
+      icon: <MessageSquare className="w-5 h-5 shrink-0" />,
+      badge: hasUnreadChat ? (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shadow-2xs animate-pulse">
+          NEW
+        </span>
+      ) : undefined,
+      gradient: "from-orange-600 via-amber-600 to-orange-500",
+      hoverGradient: "from-orange-500 via-amber-500 to-orange-400",
+    },
+    {
+      label: 'Help & Support',
+      href: '/help',
+      icon: <LifeBuoy className="w-5 h-5 shrink-0" />,
+      gradient: "from-amber-700 via-orange-800 to-amber-600",
+      hoverGradient: "from-amber-600 via-orange-700 to-amber-500",
+    },
+  ] : isAdminRole ? [
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
+      gradient: "from-purple-700 via-indigo-600 to-purple-500",
+      hoverGradient: "from-purple-600 via-indigo-500 to-purple-400",
+    },
+    {
+      label: 'Work Orders',
+      href: '/work-orders',
+      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
+      gradient: "from-indigo-700 via-purple-600 to-indigo-500",
+      hoverGradient: "from-indigo-600 via-purple-500 to-indigo-400",
+    },
+    {
+      label: 'Live Tracking',
+      href: '/tracking',
+      icon: <Map className="w-5 h-5 shrink-0" />,
+      gradient: "from-purple-700 via-indigo-600 to-purple-500",
+      hoverGradient: "from-purple-600 via-indigo-500 to-purple-400",
+    },
+    {
+      label: 'Categories',
+      href: '/categories',
+      icon: <FolderKanban className="w-5 h-5 shrink-0" />,
+      gradient: "from-violet-700 via-purple-600 to-indigo-600",
+      hoverGradient: "from-violet-600 via-purple-500 to-indigo-500",
+    },
+    {
+      label: 'Operations',
+      href: '/operations',
+      icon: <Briefcase className="w-5 h-5 shrink-0" />,
+      gradient: "from-purple-800 via-indigo-700 to-purple-600",
+      hoverGradient: "from-purple-700 via-indigo-600 to-purple-500",
+    },
+    {
+      label: 'Invoices',
+      href: '/invoices',
+      icon: <Receipt className="w-5 h-5 shrink-0" />,
+      gradient: "from-violet-800 via-purple-700 to-indigo-600",
+      hoverGradient: "from-violet-700 via-purple-600 to-indigo-500",
+    },
+    {
+      label: 'Chat',
+      href: '/chat',
+      icon: <MessageSquare className="w-5 h-5 shrink-0" />,
+      badge: hasUnreadChat ? (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shadow-2xs animate-pulse">
+          NEW
+        </span>
+      ) : undefined,
+      gradient: "from-indigo-600 via-purple-600 to-violet-500",
+      hoverGradient: "from-indigo-500 via-purple-500 to-violet-400",
+    },
+    {
+      label: 'Settings',
+      href: '/settings',
+      icon: <Settings className="w-5 h-5 shrink-0" />,
+      gradient: "from-purple-900 via-indigo-800 to-purple-700",
+      hoverGradient: "from-purple-800 via-indigo-700 to-purple-600",
+    },
+  ] : [
+    {
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
+      gradient: "from-teal-600 via-emerald-600 to-teal-500",
+      hoverGradient: "from-teal-500 via-emerald-500 to-teal-400",
+    },
+    {
+      label: 'Work Orders',
+      href: '/work-orders',
+      icon: <ClipboardList className="w-5 h-5 shrink-0" />,
+      gradient: "from-emerald-600 via-teal-600 to-emerald-500",
+      hoverGradient: "from-emerald-500 via-teal-500 to-emerald-400",
+    },
+    {
+      label: 'Live Tracking',
+      href: '/tracking',
+      icon: <Map className="w-5 h-5 shrink-0" />,
+      gradient: "from-teal-600 via-emerald-600 to-teal-500",
+      hoverGradient: "from-teal-500 via-emerald-500 to-teal-400",
+    },
+    {
+      label: 'Payments',
+      href: '/payments',
+      icon: <Receipt className="w-5 h-5 shrink-0" />,
+      gradient: "from-emerald-700 via-teal-600 to-emerald-500",
+      hoverGradient: "from-emerald-600 via-teal-500 to-emerald-400",
+    },
+    {
+      label: 'Chat',
+      href: '/chat',
+      icon: <MessageSquare className="w-5 h-5 shrink-0" />,
+      badge: hasUnreadChat ? (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white shadow-2xs animate-pulse">
+          NEW
+        </span>
+      ) : undefined,
+      gradient: "from-teal-600 via-emerald-500 to-teal-400",
+      hoverGradient: "from-teal-500 via-emerald-400 to-teal-300",
+    },
+    {
+      label: 'Help & Support',
+      href: '/help',
+      icon: <LifeBuoy className="w-5 h-5 shrink-0" />,
+      gradient: "from-teal-700 via-emerald-700 to-teal-600",
+      hoverGradient: "from-teal-600 via-emerald-600 to-teal-500",
+    },
+  ];
+
+  const sidebarLinks = portalNavItems.map((item) => ({
+    label: item.label,
+    href: item.href,
+    icon: item.icon,
+    badge: item.badge,
+  }));
+
+  // Role-based Palette
+  const roleTheme = {
+    activeNavBg: isAdminRole 
+      ? 'bg-purple-100/90 text-purple-900 font-bold rounded-xl' 
+      : isFieldRole 
+      ? 'bg-amber-100/90 text-amber-900 font-bold rounded-xl' 
+      : 'bg-teal-100/90 text-teal-900 font-bold rounded-xl',
+    activeNavIndicator: isAdminRole ? 'bg-purple-600' : isFieldRole ? 'bg-amber-600' : 'bg-teal-600',
+    activeNavIcon: isAdminRole ? 'text-purple-700' : isFieldRole ? 'text-amber-700' : 'text-teal-700',
+    hoverNavBg: isAdminRole 
+      ? 'hover:bg-purple-50/80 hover:text-purple-700 text-gray-600 rounded-xl' 
+      : isFieldRole 
+      ? 'hover:bg-amber-50/80 hover:text-amber-700 text-gray-600 rounded-xl' 
+      : 'hover:bg-teal-50/80 hover:text-teal-700 text-gray-600 rounded-xl',
+    hoverNavIcon: isAdminRole 
+      ? 'group-hover:text-purple-700' 
+      : isFieldRole 
+      ? 'group-hover:text-amber-700' 
+      : 'group-hover:text-teal-700',
+    roleBadge: isAdminRole
+      ? 'bg-purple-50 text-purple-700 border border-purple-200/90'
+      : isFieldRole
+      ? 'bg-amber-50 text-amber-700 border border-amber-200/90'
+      : 'bg-teal-50 text-teal-700 border border-teal-200/90',
+    userAvatarBg: isAdminRole ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-200' : isFieldRole ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'bg-teal-100 text-teal-700 ring-1 ring-teal-200',
+    searchRing: isAdminRole
+      ? 'focus-within:ring-purple-200 focus-within:border-purple-300'
+      : isFieldRole
+      ? 'focus-within:ring-amber-200 focus-within:border-amber-300'
+      : 'focus-within:ring-teal-200 focus-within:border-teal-300',
+    userBtnHover: isAdminRole
+      ? 'hover:bg-purple-50/80 hover:border-purple-200 border border-transparent text-gray-800'
+      : isFieldRole
+      ? 'hover:bg-amber-50/80 hover:border-amber-200'
+      : 'hover:bg-teal-50/80 hover:border-teal-200',
+    mobileMenuHover: isAdminRole
+      ? 'hover:bg-purple-50 hover:text-purple-700 text-gray-600'
+      : isFieldRole
+      ? 'hover:bg-amber-50 hover:text-amber-800 text-gray-600'
+      : 'hover:bg-teal-50 hover:text-teal-700 text-gray-600',
+    dropdownHover: isAdminRole
+      ? 'hover:bg-purple-50 hover:text-purple-900'
+      : isFieldRole
+      ? 'hover:bg-amber-50 hover:text-amber-900'
+      : 'hover:bg-teal-50 hover:text-teal-900',
+    headerBorder: 'border-gray-100',
+    sidebarBorder: 'border-transparent',
+    pageBg: 'bg-white'
+  };
+
+
 
   return (
-    <div className="min-h-screen bg-[#F0FDF4] lg:bg-gray-50 flex">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:block w-64 fixed inset-y-0 z-20">
-        <NavContent />
-      </aside>
+    <div
+      data-role={isAdminRole ? 'admin' : isFieldRole ? 'fieldteam' : 'client'}
+      className={`min-h-screen bg-white flex flex-col transition-colors duration-300 role-${isAdminRole ? 'admin' : isFieldRole ? 'fieldteam' : 'client'}`}
+    >
+      {/* ================= FULL-WIDTH UNIFIED TOP HEADER ================= */}
+      <header className="h-16 bg-white/95 backdrop-blur-md text-gray-900 border-b border-gray-100 shadow-none flex items-center justify-between px-3 sm:px-4 lg:px-8 sticky top-0 z-50 w-full transition-colors duration-200">
+        {/* LEFT: ClearFlow Brand Logo & Mobile Trigger */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10 shrink-0">
+          {/* Mobile Drawer Trigger - All Roles */}
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild className="lg:hidden">
+              <Button variant="ghost" size="icon" className={`text-gray-600 ${roleTheme.mobileMenuHover} cursor-pointer shrink-0`}>
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className={cn("p-0 w-[280px] max-w-[85vw] flex flex-col bg-white text-gray-900 border-r rounded-r-3xl shadow-2xl overflow-hidden", roleTheme.sidebarBorder)}>
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <div className={`h-16 px-5 flex items-center justify-between border-b ${roleTheme.sidebarBorder}`}>
+                <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center hover:opacity-95 transition-opacity">
+                  <ClearFlowLogo badgeSize={32} textSize="text-xl font-bold" role={isFieldRole ? 'worker' : isAdminRole ? 'admin' : 'client'} />
+                </Link>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-1.5 touch-scroll">
+                {sidebarLinks.map((link, idx) => (
+                  <SidebarLink
+                    key={idx}
+                    link={link}
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                    }}
+                    activeClassName={roleTheme.activeNavBg}
+                    activeIconClassName={roleTheme.activeNavIcon}
+                    className={roleTheme.hoverNavBg}
+                  />
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:pl-64 min-h-screen">
-        {/* Top Header */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild className="lg:hidden">
-                <Button variant="ghost" size="icon" className="text-gray-600">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-64">
-                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                <NavContent />
-              </SheetContent>
-            </Sheet>
-            
-            <div className="hidden md:flex items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-100 w-64 focus-within:ring-2 focus-within:ring-teal-100 focus-within:border-teal-300 transition-all">
-              <Search className="w-4 h-4 text-gray-400 mr-2" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-gray-400"
-              />
-            </div>
-          </div>
+          {/* ClearFlow Logo on the Left */}
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-1.5 sm:gap-2 hover:opacity-95 transition-opacity"
+            title="ClearFlow Home"
+          >
+            <ClearFlowLogo
+              badgeSize={30}
+              textSize="text-lg sm:text-xl font-bold"
+              role={isFieldRole ? 'worker' : isAdminRole ? 'admin' : 'client'}
+            />
+          </Link>
+        </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <NotificationBell />
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-4 py-1.5 h-auto rounded-full hover:bg-gray-50 cursor-pointer">
-                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700">
-                    <UserCircle className="w-5 h-5" />
-                  </div>
-                  <div className="hidden sm:flex flex-col items-start">
-                    <span className="text-sm font-medium text-gray-700 leading-none">{user?.name || user?.firstName || 'User'}</span>
-                    <span className="text-xs text-gray-400 mt-1">{user?.role}</span>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-white shadow-xl rounded-xl border border-gray-100">
-                <DropdownMenuItem className="cursor-pointer text-gray-700" onClick={() => navigate('/profile')}>
-                  <UserCircle className="w-4 h-4 mr-2" />
-                  User Profile
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem className="cursor-pointer text-gray-700" onClick={() => navigate('/settings')}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    System Settings
-                  </DropdownMenuItem>
-                )}
-                <div className="border-t border-gray-100 my-1" />
-                <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50" onClick={logout}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+        {/* RIGHT: Points Pill (Worker - Hidden on Wallet Page) + Refresh + Notifications Bell + User Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 z-10 shrink-0">
+          {isFieldRole && !location.pathname.startsWith('/wallet') && (
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/wallet')}
+              className="hidden min-[420px]:flex bg-amber-100/90 hover:bg-amber-200/90 text-amber-950 border border-amber-300/80 rounded-full h-8 px-2 sm:px-3 text-xs font-bold items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-95"
+              title="Open My Points & Wallet Page"
+            >
+              <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="font-mono font-black">{workerWallet?.pointsBalance ?? (isDemoField ? 160 : 0)} pts</span>
+            </Button>
+          )}
 
-        {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            <Outlet />
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleGlobalRefresh}
+            disabled={isHeaderRefreshing}
+            className={`h-9 w-9 rounded-xl border border-transparent bg-transparent text-gray-600 hover:text-gray-900 ${roleTheme.mobileMenuHover} cursor-pointer transition-all active:scale-95 shadow-none`}
+            title="Refresh portal data"
+          >
+            <RefreshCw className={cn("h-4 w-4", isHeaderRefreshing && "animate-spin", roleTheme.activeNavIcon)} />
+          </Button>
+
+          <VercelNotificationPopover />
+
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className={`flex items-center gap-2 pl-2 pr-3 py-1.5 h-9 rounded-full ${roleTheme.userBtnHover} border border-transparent transition-all cursor-pointer focus-visible:ring-0 focus:outline-none select-none`}>
+                <div className={`w-7.5 h-7.5 rounded-full ${roleTheme.userAvatarBg} flex items-center justify-center font-bold text-xs shrink-0`}>
+                  <UserCircle className="w-4.5 h-4.5" />
+                </div>
+                <div className="hidden sm:flex items-center">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-800 leading-none">
+                    {user?.name || user?.firstName || 'User'}
+                  </span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
+              className="w-48 sm:w-52 bg-white/98 backdrop-blur-md border border-gray-100 shadow-xl shadow-gray-900/10 rounded-2xl p-1.5 z-[9999] space-y-0.5 font-sans"
+            >
+              <DropdownMenuItem 
+                className={cn(
+                  "cursor-pointer flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-semibold transition-all group outline-none",
+                  roleTheme.dropdownHover
+                )} 
+                onClick={() => navigate('/profile')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <UserCircle className={cn(
+                    "w-4 h-4 shrink-0 transition-colors",
+                    isAdminRole ? "text-purple-600" : isFieldRole ? "text-amber-600" : "text-teal-600"
+                  )} />
+                  <span className="text-gray-700 group-hover:text-gray-900 font-semibold text-[13px]">User Profile</span>
+                </div>
+                <span className={cn(
+                  "text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border shadow-2xs leading-none",
+                  roleTheme.roleBadge
+                )}>
+                  {formattedRole}
+                </span>
+              </DropdownMenuItem>
+
+              <div className="border-t border-gray-100 my-1 mx-1" />
+
+              <DropdownMenuItem 
+                className="cursor-pointer flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50 transition-all group outline-none" 
+                onClick={handleSignOut}
+              >
+                <div className="flex items-center gap-2.5">
+                  <LogOut className="w-4 h-4 shrink-0 text-red-500 group-hover:text-red-600 transition-colors" />
+                  <span className="font-semibold text-[13px] text-red-600 group-hover:text-red-700">Sign Out</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      {/* ================= BODY AREA ================= */}
+      <div className="flex-1 flex relative">
+        {/* Animated Edge-Docked Portal Sidebar with Social-Links Hover Sliding Animation */}
+        <AnimatedPortalSidebar
+          items={portalNavItems}
+          role={currentRoleKey}
+          showOnMobile={true}
+        />
+
+        {/* Main Content Area - Positioned up cleanly across all portals */}
+        <main className="flex-1 px-3 sm:px-4 pt-2.5 pb-12 lg:px-8 lg:pt-3 lg:pb-8 w-full max-w-full overflow-x-hidden lg:pl-[76px] min-h-[calc(100vh-4rem)]">
+          <Outlet />
         </main>
       </div>
     </div>

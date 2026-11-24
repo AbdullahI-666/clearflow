@@ -13,5 +13,9 @@
     "dev:client": "npm --prefix client run dev",
     "dev:server": "npm --prefix server run dev",
     "test": "npm --prefix server run test && python -m pytest ai-service/tests"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "pg": "^8.23.1"
   }
 }

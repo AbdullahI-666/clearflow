@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 #       🌟 CLEARFLOW UNIFIED SYSTEM LAUNCHER 🌟
 # ======================================================
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
@@ -12,7 +12,7 @@ Write-Host "`n[1/3] Starting Python AI Microservice (Port 5001)..." -ForegroundC
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\ai-service'; python app.py"
 
 # 2. Seed Database
-Write-Host "[2/3] Seeding MongoDB Database..." -ForegroundColor Yellow
+Write-Host "[2/3] Seeding Database (Supabase / Store)..." -ForegroundColor Yellow
 Set-Location -Path "$PSScriptRoot\server"
 & "C:\Program Files\nodejs\npm.cmd" run seed
 
