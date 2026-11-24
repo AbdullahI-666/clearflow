@@ -28,8 +28,25 @@ if (-not (Test-Path "$PSScriptRoot\client\dist\index.html")) {
     npm --prefix "$PSScriptRoot\client" run build
 }
 
-# 4. Launch Unified Server (Frontend + Backend + WebSockets on Port 3000)
+# 4. Launch Unified Server in dedicated window
 Write-Host "`n[3/3] Launching Unified Web Application (Port 3000)..." -ForegroundColor Green
+$serverCmd = "cd '$PSScriptRoot\server'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $serverCmd
+
+Write-Host "Waiting for server to become ready on http://localhost:3000..." -ForegroundColor Cyan
+$ready = $false
+$attempts = 0
+while (-not $ready -and $attempts -lt 25) {
+    Start-Sleep -Seconds 1
+    $attempts++
+    try {
+        $resp = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 1 -ErrorAction SilentlyContinue
+        if ($resp.status -eq 'healthy') {
+            $ready = $true
+        }
+    } catch {}
+}
+
 Write-Host "`n------------------------------------------------------" -ForegroundColor DarkGray
 Write-Host " 🚀 UNIFIED APP LINK:   http://localhost:3000" -ForegroundColor Cyan
 Write-Host " 🔌 REST APIs:          http://localhost:3000/api" -ForegroundColor White
@@ -37,9 +54,9 @@ Write-Host " 📖 Swagger API Docs:   http://localhost:3000/api-docs" -Foregroun
 Write-Host " 💓 Health Check:       http://localhost:3000/api/health" -ForegroundColor White
 Write-Host "------------------------------------------------------`n" -ForegroundColor DarkGray
 
-# Open browser to the unified link
+if ($ready) {
+    Write-Host "🌟 Server is live! Opening browser..." -ForegroundColor Green
+} else {
+    Write-Host "Opening browser..." -ForegroundColor Yellow
+}
 Start-Process "http://localhost:3000"
-
-# Start the unified dev server
-Set-Location -Path "$PSScriptRoot\server"
-npm run dev
